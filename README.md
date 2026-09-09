@@ -38,8 +38,8 @@ MLB API를 활용해 경기 진행 상황을 실시간 중계하고, 사용자�
 | Provider | GOOGLE, KAKAO, NAVER |
 | MatchStatus | BEFORE, PLAYED, FINISHED |
 
-### 다이어그램
-
+## DIAGRAM
+### ERD
 ```mermaid
 erDiagram
     TEAM_MASTER ||--o{ PLAYER_MASTER : has
@@ -161,4 +161,51 @@ erDiagram
         long external_play_id
         long match_id FK
     }
+
+
 ```
+----
+### BETTING DIAGRAM
+
+#### STATE DIAGRAM
+```mermaid
+stateDiagram-v2
+    [*] --> PENDING : 베팅 생성(코인 차감)
+    PENDING --> WON : 승리
+    PENDING --> LOST : 패배
+    PENDING --> CANCELED : 취소(우천 등)
+    WON --> [*] : 코인 증가(CoinTransaction)
+    LOST --> [*]:(추가 코인 변동 없음)
+    CANCELED --> [*] : 차감된 코인 환수
+
+
+
+```
+#### SEQUENCE DIAGRAM
+```mermaid
+sequenceDiagram
+    MatchScheduler->> MatchService : matchClose
+    MatchService ->> EventPublisher :  publish(BetSettleEvent)
+    EventPublisher -->> BetSettleEventListener : MatchCloseevent
+    BetSettleEventListener ->> BetService : settle(matchId)
+    loop 각 베팅 엔티티마다 루프
+    alt 적중 (WON)
+        BetService->>BetRepository: wonBet
+        BetService->>CoinTransactionService: wonBetEvent
+        CoinTransactionService -> MemberService : addCoinEvent
+        MemberService ->> MEMBER : addCoin
+    else 실패 (LOST)
+        BetService->>BetRepository: lostBet
+    else 경기 취소 (CANCELED)
+        BetService->>BetRepository: cancel
+        BetService->>CoinTransactionService: cancelBetEvent
+        CoinTransactionService -> MemberService : addCoinEvent
+        MemberService ->> MEMBER : addCoin
+    end
+    end
+```
+ADR
+- API호출은 폴링 형식으로 저장하며, 외부 API에서 접근하는 INDEX에 맞춰 필요한 내용만 저장.
+- 실시간성 데이터(현재 타석)은 Redis 메모리를통해 캐시화 한 뒤, 타석이 끝난뒤 db 폴링
+- `player_hitter_record`, `player_pitcher_record`, `team_record` 에는 공통으로 sanson_year 칼럼을 통한 의도적 비 정규화.  → 정규화 시, 빈도가 잦은 쿼리에서 조인이 비효율적으로 자주 발생.  세 엔티티는  matches의 season_year이 파생되어 정합성 유지.
+- 디렉토리 설계는 도메인 위주로 설계하여 유연한 확장이 가능하게 설계
