@@ -204,7 +204,55 @@ sequenceDiagram
     end
     end
 ```
-ADR
+
+## 디렉토리 구조
+
+
+```
+src/main/java/com/mlbbroadcast
+├── MlbBroadcastApplication.java
+├── bet                 # 베팅
+│   ├── Bet.java
+│   ├── BetRepository.java
+│   └── BetStatus.java
+├── coin                # 코인 정산/지급
+│   ├── CoinTransaction.java
+│   ├── CoinTransactionRepository.java
+│   └── PointReason.java
+├── common              # 여러 도메인이 공유하는 타입 (예: 홈/원정 side)
+│   └── Side.java
+├── match                # 경기, 경기 중계 로그
+│   ├── Matches.java
+│   ├── MatchesRepository.java
+│   ├── MatchPlaylog.java
+│   ├── MatchPlaylogRepository.java
+│   ├── MatchStatus.java
+│   └── PlayResult.java
+├── member              # 회원
+│   ├── Members.java
+│   ├── MembersRepository.java
+│   └── Provider.java
+├── player              # 선수 마스터/기록/최애 선수
+│   ├── FavoritePlayer.java
+│   ├── FavoritePlayerRepository.java
+│   ├── PlayerHitterRecord.java
+│   ├── PlayerHitterRecordRepository.java
+│   ├── PlayerMaster.java
+│   ├── PlayerMasterRepository.java
+│   ├── PlayerPitcherRecord.java
+│   ├── PlayerPitcherRecordRepository.java
+│   └── PlayerPosition.java
+└── team                 # 팀 마스터/기록
+    ├── Division.java
+    ├── TeamMaster.java
+    ├── TeamMasterRepository.java
+    ├── TeamRecord.java
+    └── TeamRecordRepository.java
+```
+
+> controller / service / dto는 아직 구현되지 않아 위 구조에서 제외했다. 추가되면 각 도메인 패키지 하위에 함께 위치시킬 예정이다.
+
+## ADR
 - API호출은 폴링 형식으로 저장하며, 외부 API에서 접근하는 INDEX에 맞춰 필요한 내용만 저장.
 - 실시간성 데이터(현재 타석)은 Redis 메모리를통해 캐시화 한 뒤, 타석이 끝난뒤 db 폴링
 - `player_hitter_record`, `player_pitcher_record`, `team_record` 에는 공통으로 sanson_year 칼럼을 통한 의도적 비 정규화.  → 정규화 시, 빈도가 잦은 쿼리에서 조인이 비효율적으로 자주 발생.  세 엔티티는  matches의 season_year이 파생되어 정합성 유지.
