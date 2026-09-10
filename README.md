@@ -164,46 +164,7 @@ erDiagram
 
 
 ```
-----
-### BETTING DIAGRAM
 
-#### STATE DIAGRAM
-```mermaid
-stateDiagram-v2
-    [*] --> PENDING : 베팅 생성(코인 차감)
-    PENDING --> WON : 승리
-    PENDING --> LOST : 패배
-    PENDING --> CANCELED : 취소(우천 등)
-    WON --> [*] : 코인 증가(CoinTransaction)
-    LOST --> [*]:(추가 코인 변동 없음)
-    CANCELED --> [*] : 차감된 코인 환수
-
-
-
-```
-#### SEQUENCE DIAGRAM
-```mermaid
-sequenceDiagram
-    MatchScheduler->> MatchService : matchClose
-    MatchService ->> EventPublisher :  publish(BetSettleEvent)
-    EventPublisher -->> BetSettleEventListener : MatchCloseevent
-    BetSettleEventListener ->> BetService : settle(matchId)
-    loop 각 베팅 엔티티마다 루프
-    alt 적중 (WON)
-        BetService->>BetRepository: wonBet
-        BetService->>CoinTransactionService: wonBetEvent
-        CoinTransactionService -> MemberService : addCoinEvent
-        MemberService ->> MEMBER : addCoin
-    else 실패 (LOST)
-        BetService->>BetRepository: lostBet
-    else 경기 취소 (CANCELED)
-        BetService->>BetRepository: cancel
-        BetService->>CoinTransactionService: cancelBetEvent
-        CoinTransactionService -> MemberService : addCoinEvent
-        MemberService ->> MEMBER : addCoin
-    end
-    end
-```
 
 ## 디렉토리 구조
 
@@ -252,8 +213,135 @@ src/main/java/com/mlbbroadcast
 
 > controller / service / dto는 아직 구현되지 않아 위 구조에서 제외했다. 추가되면 각 도메인 패키지 하위에 함께 위치시킬 예정이다.
 
+
+----
+### MATCH DIAGRAM
+
+#### STATE DIAGRAM
+``` mermaid
+
+stateDiagram-v2
+    [*] --> BEFORE : 매치생성 
+    BEFORE --> PLAYED : 경기시작
+    BEFORE --> CANCELED : 경기 취소 
+    
+    PLAYED --> SUSPENDED : 경기 일지정지
+    SUSPENDED --> PLAYED : 경기 재개 
+    SUSPENDED --> CANCELED : 경기 재개 불가 
+    PLAYED --> FINISHED : 정상 종료
+    FINISHED --> [*] 
+    CANCELED --> [*]
+
+
+
+
+```
+#### SequenceDiagram
+``` mermaid
+sequenceDiagram
+
+
+    MatchScheduler ->> APISTATUS : CurrentDataRequest
+    APISTATUS ->> MatchScheduler : CurrentMatchResonse
+    loop MatchStatus == PLAYED || MatchStatus == SUSPENDED
+    MatchScheduler ->> MatchService :  matchLoad(matchData)
+    alt status = FINISHED
+
+        MatchService ->> EventPublisher : Event(FinishGame)
+        EventPublisher ->> EventListener : MatchServiceEvent
+        MatchService ->> MatchRepository : save()
+    
+    else status = SUSPENDED
+        MatchService ->> MatchRepository : save()
+
+     else status = CANCELED
+        MatchService ->> EventPublisher : Event(CanceledGame)
+        EventPublisher ->> EventListener : MatchServiceEvent
+        MatchService ->> MatchRepository : save()
+    else status = PLAYED
+        MatchService ->> Redis : getExistingAtBatIndex()
+        Redis -->> MatchService : existingAtBatStateIndex
+        MatchService ->> Redis : setCurrentAtBatState(balls, strikes, outs)
+        opt CurrentAtBatStateIndex > existingAtBatStateIndex
+        MatchService ->> MatchRecordService : endedAtBat()
+        MatchRecordService ->> MatchRecordRepository : record()
+    end
+
+    opt scoreChange
+        MatchService ->> MatchRepository : updateMatch()
+    end
+    end
+    
+        MatchService ->> WebSocket: signalByClient
+
+    end 
+    
+    
+
+    
+```
+
+
+----
+### BETTING DIAGRAM
+
+
+#### STATE DIAGRAM
+
+#### BetCreate
+``` mermaid
+sequenceDiagram
+    
+    BetService ->> BetRepository : new Bet Create
+    BetService ->> CoinTransaction : spend Coin (Betting)
+    CoinTransaction ->> MemberRepository: coin.spend()
+    
+    
+```
+
+#### BetTransaction
+
+```mermaid
+stateDiagram-v2
+    [*] --> PENDING : 베팅 생성(코인 차감)
+    PENDING --> WON : 승리
+    PENDING --> LOST : 패배
+    PENDING --> CANCELED : 취소(우천 등)
+    WON --> [*] : 코인 증가(CoinTransaction)
+    LOST --> [*]:(추가 코인 변동 없음)
+    CANCELED --> [*] : 차감된 코인 환수
+
+```
+
+#### SEQUENCE DIAGRAM
+```mermaid
+sequenceDiagram
+    MatchScheduler->> MatchService : matchClose
+    MatchService ->> EventPublisher :  publish(BetSettleEvent)
+    EventPublisher -->> BetSettleEventListener : MatchCloseevent
+    BetSettleEventListener ->> BetService : settle(matchId)
+    loop 각 베팅 엔티티마다 루프
+    alt 적중 (WON)
+        BetService->>BetRepository: wonBet
+        BetService->>CoinTransactionService: wonBetEvent
+        CoinTransactionService -> MemberService : addCoinEvent
+        MemberService ->> MEMBER : addCoin
+    else 실패 (LOST)
+        BetService->>BetRepository: lostBet
+    else 경기 취소 (CANCELED)
+        BetService->>BetRepository: cancel
+        BetService->>CoinTransactionService: cancelBetEvent
+        CoinTransactionService -> MemberService : addCoinEvent
+        MemberService ->> MEMBER : addCoin
+    end
+    end
+```
+
+
+
 ## ADR
 - API호출은 폴링 형식으로 저장하며, 외부 API에서 접근하는 INDEX에 맞춰 필요한 내용만 저장.
 - 실시간성 데이터(현재 타석)은 Redis 메모리를통해 캐시화 한 뒤, 타석이 끝난뒤 db 폴링
 - `player_hitter_record`, `player_pitcher_record`, `team_record` 에는 공통으로 sanson_year 칼럼을 통한 의도적 비 정규화.  → 정규화 시, 빈도가 잦은 쿼리에서 조인이 비효율적으로 자주 발생.  세 엔티티는  matches의 season_year이 파생되어 정합성 유지.
 - 디렉토리 설계는 도메인 위주로 설계하여 유연한 확장이 가능하게 설계
+- MatchService -> BetService 는 이벤트 리스너를 이용하여 추후 확장 설계를 대비. coinTransaction->memberService는 같은 트랜잭션 안에 일관되고 빠르게 처리되어야 하기 때문에 직접 호출  
