@@ -1,7 +1,8 @@
-package com.mlbbroadcast.match;
+package com.mlbbroadcast.match.entities;
 
 
 import com.mlbbroadcast.common.Side;
+import com.mlbbroadcast.match.enums.MatchStatus;
 import jakarta.persistence.*;
 import lombok.Builder;
 import lombok.Getter;

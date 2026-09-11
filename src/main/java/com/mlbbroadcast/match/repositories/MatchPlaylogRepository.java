@@ -1,6 +1,6 @@
-package com.mlbbroadcast.match.Repositories;
+package com.mlbbroadcast.match.repositories;
 
-import com.mlbbroadcast.match.MatchPlaylog;
+import com.mlbbroadcast.match.entities.MatchPlaylog;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 

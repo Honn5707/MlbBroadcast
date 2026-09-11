@@ -288,6 +288,20 @@ sequenceDiagram
 
 #### STATE DIAGRAM
 
+```mermaid
+stateDiagram-v2
+    [*] --> PENDING : 베팅 생성(코인 차감)
+    PENDING --> WON : 승리
+    PENDING --> LOST : 패배
+    PENDING --> CANCELED : 취소(우천 등)
+    WON --> [*] : 코인 증가(CoinTransaction)
+    LOST --> [*]:(추가 코인 변동 없음)
+    CANCELED --> [*] : 차감된 코인 환수
+
+```
+
+
+
 #### BetCreate
 ``` mermaid
 sequenceDiagram
@@ -321,18 +335,6 @@ sequenceDiagram
 ```
 
 #### BetTransaction
-
-```mermaid
-stateDiagram-v2
-    [*] --> PENDING : 베팅 생성(코인 차감)
-    PENDING --> WON : 승리
-    PENDING --> LOST : 패배
-    PENDING --> CANCELED : 취소(우천 등)
-    WON --> [*] : 코인 증가(CoinTransaction)
-    LOST --> [*]:(추가 코인 변동 없음)
-    CANCELED --> [*] : 차감된 코인 환수
-
-```
 
 #### SEQUENCE DIAGRAM
 ```mermaid

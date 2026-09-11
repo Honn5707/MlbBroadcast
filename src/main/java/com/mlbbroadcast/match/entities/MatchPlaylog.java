@@ -1,6 +1,7 @@
-package com.mlbbroadcast.match;
+package com.mlbbroadcast.match.entities;
 
 
+import com.mlbbroadcast.match.enums.PlayResult;
 import com.mlbbroadcast.player.PlayerPosition;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
