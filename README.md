@@ -292,9 +292,30 @@ sequenceDiagram
 ``` mermaid
 sequenceDiagram
     
-    BetService ->> BetRepository : new Bet Create
-    BetService ->> CoinTransaction : spend Coin (Betting)
-    CoinTransaction ->> MemberRepository: coin.spend()
+
+    BetService ->> MatchService : is Match Befoe?
+    MatchService -->> BetService : response
+    alt MathStatus = BEFORE
+    BetService ->> BetRepository : isParticePainted(memberId, MatchId)
+    BetRepository -->> BetService : response
+    alt isBetted <- false
+    BetService ->> MemberService : check_coinRemain
+    MemberService --> BetService : response
+    alt coinRemain >= betAmount
+    
+    BetService ->> CoinTransactionService : spend Coin (Betting)
+    CoinTransactionService ->> MemberRepository: coin.spend()
+    BetService ->> BetRepository : Create Bet Entity
+    else coinRemain< betAmount
+    Note over BetService: LackCoinException
+    end
+    else isBetted <- true
+    Note over BetService: MatchAlreadyParticePaintedException
+    end
+    else MathStatus != BEFORE
+    Note over BetService: MatchAlreadyStartedException
+    end
+    
     
     
 ```
