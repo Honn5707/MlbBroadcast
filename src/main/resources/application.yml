@@ -1,0 +1,6 @@
+
+default-properties:
+  current-play:
+    current-play-cache-duration: 1h
+    current-data-key-index: "CurrentPlayIndex:"
+    fields: "currentPlay,count,balls,strikes,outs,matchup,batter,pitcher,id,fullName,pitchIndex,runnerIndex,runners,movement,originBase,start,end,outBase,isOut,details,event,eventType,runner,isScoringEvent,playEvents,description,isStrike,isBall,isInPlay,index,atBatIndex,type,code,pitchData,startSpeed,endSpeed"

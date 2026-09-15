@@ -1,13 +1,14 @@
 package com.mlbbroadcast.match.entities;
 
 
-import com.mlbbroadcast.match.enums.PlayResult;
-import com.mlbbroadcast.player.PlayerPosition;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "match_playlog")
@@ -18,43 +19,39 @@ public class MatchPlaylog {
     @Id
     private Long id;
 
-    @Column(name = "player_id", nullable = false)
-    private Long playerId;
+    @Column(name = "match_id", nullable = false)
+    private Long matchId;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "record_type", nullable = false)
-    private PlayerPosition recordType;
+    @Column(name = "at_bat_index", nullable = false)
+    private int atBatIndex;
+
+    @Column(name = "batter_id", nullable = false)
+    private Long batterId;
+
+    @Column(name = "pitcher_id", nullable = false)
+    private Long pitcherId;
+
+    @Column(name = "result_description", nullable = true)
+    private String resultDescription;
 
     @Column(name = "inning", nullable = false)
     private int inning;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "result", nullable = false)
-    private PlayResult result;
-
-    @Lob
-    @Column(name = "meta_data", columnDefinition = "TEXT")
-    private String metaData;
-
     @Column(name = "is_highlight", nullable = false)
     private boolean isHighlight;
 
-    @Column(name = "external_play_id", nullable = false)
-    private Long externalPlayId;
-
-    @Column(name = "match_id", nullable = false)
-    private Long matchId;
+    @OneToMany(mappedBy = "matchPlaylog", cascade = CascadeType.ALL)
+    private List<MatchPitch> pitches = new ArrayList<>();
 
     @Builder
-    public MatchPlaylog(Long playerId, PlayerPosition recordType, int inning, PlayResult result,
-                        String metaData, boolean isHighlight, Long externalPlayId, Long matchId) {
-        this.playerId = playerId;
-        this.recordType = recordType;
-        this.inning = inning;
-        this.result = result;
-        this.metaData = metaData;
-        this.isHighlight = isHighlight;
-        this.externalPlayId = externalPlayId;
+    public MatchPlaylog(Long matchId, int atBatIndex, Long batterId, Long pitcherId,
+                        String resultDescription, int inning, boolean isHighlight) {
         this.matchId = matchId;
+        this.atBatIndex = atBatIndex;
+        this.batterId = batterId;
+        this.pitcherId = pitcherId;
+        this.resultDescription = resultDescription;
+        this.inning = inning;
+        this.isHighlight = isHighlight;
     }
 }

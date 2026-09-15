@@ -1,6 +1,7 @@
-package com.mlbbroadcast.player;
+package com.mlbbroadcast.player.entity;
 
 
+import com.mlbbroadcast.player.PlayerPosition;
 import jakarta.persistence.*;
 import lombok.*;
 

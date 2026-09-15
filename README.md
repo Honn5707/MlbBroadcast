@@ -89,6 +89,7 @@ erDiagram
     }
 
     TEAM_RECORD {
+        
         long id PK
         long team_id FK
         long match_id FK

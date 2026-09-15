@@ -1,4 +1,4 @@
-package com.mlbbroadcast.player;
+package com.mlbbroadcast.player.entity;
 
 
 import jakarta.persistence.*;

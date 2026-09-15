@@ -1,5 +1,6 @@
-package com.mlbbroadcast.player;
+package com.mlbbroadcast.player.repository;
 
+import com.mlbbroadcast.player.entity.PlayerMaster;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 

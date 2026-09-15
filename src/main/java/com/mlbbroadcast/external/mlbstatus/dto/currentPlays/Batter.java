@@ -1,11 +1,8 @@
-package com.mlbbroadcast.external.mlbstatus.dto.live;
+package com.mlbbroadcast.external.mlbstatus.dto.currentPlays;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 public record Batter(
-
-	@JsonProperty("link")
-	String link,
 
 	@JsonProperty("fullName")
 	String fullName,
