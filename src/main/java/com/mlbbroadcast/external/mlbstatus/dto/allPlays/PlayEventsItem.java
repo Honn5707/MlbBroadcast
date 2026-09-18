@@ -7,6 +7,9 @@ public record PlayEventsItem(
 	@JsonProperty("pitchData")
 	PitchData pitchData,
 
+	@JsonProperty("type")
+	String type,
+
 	@JsonProperty("count")
 	Count count,
 

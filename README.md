@@ -4,6 +4,7 @@
 
 MLB API를 활용해 경기 진행 상황을 실시간 중계하고, 사용자는 원하는 팀에 베팅한다. 베팅한 팀이 승리하면 서비스 내 코인을 보상으로 획득한다.
 
+MVP단계에서는 모놀리식으로 개발하며 트래픽테스트 과정을 통해 멀티 아키텍쳐 시스템으로 강화할 예정. 
 ## 주요 기능
 
 ### 실시간 경기 중계
@@ -369,3 +370,4 @@ sequenceDiagram
 - `player_hitter_record`, `player_pitcher_record`, `team_record` 에는 공통으로 sanson_year 칼럼을 통한 의도적 비 정규화.  → 정규화 시, 빈도가 잦은 쿼리에서 조인이 비효율적으로 자주 발생.  세 엔티티는  matches의 season_year이 파생되어 정합성 유지.
 - 디렉토리 설계는 도메인 위주로 설계하여 유연한 확장이 가능하게 설계
 - MatchService -> BetService 는 이벤트 리스너를 이용하여 추후 확장 설계를 대비. coinTransaction->memberService는 같은 트랜잭션 안에 일관되고 빠르게 처리되어야 하기 때문에 직접 호출  
+  (09.15) 경기 데이터 저장 형식을 MatchPlayLog엔티티에서 PitchLog엔티티를 추가하여 

@@ -7,14 +7,11 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.util.ArrayList;
-import java.util.List;
-
 @Entity
-@Table(name = "match_playlog")
+@Table(name = "match_play_log")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class MatchPlaylog {
+public class MatchplayLog {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Id
     private Long id;
@@ -22,14 +19,22 @@ public class MatchPlaylog {
     @Column(name = "match_id", nullable = false)
     private Long matchId;
 
-    @Column(name = "at_bat_index", nullable = false)
-    private int atBatIndex;
 
-    @Column(name = "batter_id", nullable = false)
+
+    @Column(name = "at_bat_index", nullable = false)
+    private Integer atBatIndex;
+
+    @Column(name = "batter_id", nullable = true)
     private Long batterId;
 
-    @Column(name = "pitcher_id", nullable = false)
+    @Column(name = "pitcher_id", nullable = true)
     private Long pitcherId;
+
+    @Column(name = "batter_id", nullable = false)
+    private int batterExternalId;
+
+    @Column(name = "pitcher_id", nullable = false)
+    private int pitcherExternalId;
 
     @Column(name = "result_description", nullable = true)
     private String resultDescription;
@@ -37,21 +42,17 @@ public class MatchPlaylog {
     @Column(name = "inning", nullable = false)
     private int inning;
 
-    @Column(name = "is_highlight", nullable = false)
-    private boolean isHighlight;
-
-    @OneToMany(mappedBy = "matchPlaylog", cascade = CascadeType.ALL)
-    private List<MatchPitch> pitches = new ArrayList<>();
 
     @Builder
-    public MatchPlaylog(Long matchId, int atBatIndex, Long batterId, Long pitcherId,
-                        String resultDescription, int inning, boolean isHighlight) {
+    public MatchplayLog(Long matchId, Integer atBatIndex, Long batterId, Long pitcherId, int batterExternalId, int pitcherExternalId,
+                        String resultDescription, int inning) {
         this.matchId = matchId;
         this.atBatIndex = atBatIndex;
         this.batterId = batterId;
         this.pitcherId = pitcherId;
+        this.batterExternalId = batterExternalId;
+        this.pitcherExternalId = pitcherExternalId;
         this.resultDescription = resultDescription;
         this.inning = inning;
-        this.isHighlight = isHighlight;
     }
 }

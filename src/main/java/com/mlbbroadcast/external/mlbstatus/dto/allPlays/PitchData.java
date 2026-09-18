@@ -5,9 +5,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public record PitchData(
 
 	@JsonProperty("endSpeed")
-	Object endSpeed,
+	Double endSpeed,
 
 	@JsonProperty("startSpeed")
-	Object startSpeed
+	Double startSpeed
 ) {
 }

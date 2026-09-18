@@ -1,7 +1,7 @@
 package com.mlbbroadcast.player.entity;
 
 
-import com.mlbbroadcast.player.PlayerPosition;
+import com.mlbbroadcast.common.PlayerPosition;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -25,10 +25,10 @@ public class PlayerMaster {
     private String name;
 
     @Column(name = "external_id", nullable = false)
-    private Long externalId;
+    private int externalId;
 
     @Builder
-    public PlayerMaster(Long teamId, PlayerPosition position, String name, Long externalId) {
+    public PlayerMaster(Long teamId, PlayerPosition position, String name, int externalId) {
         this.teamId = teamId;
         this.position = position;
         this.name = name;

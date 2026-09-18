@@ -1,4 +1,4 @@
-package com.mlbbroadcast.player;
+package com.mlbbroadcast.common;
 
 public enum PlayerPosition {
     PITCHER, CATCHER,
