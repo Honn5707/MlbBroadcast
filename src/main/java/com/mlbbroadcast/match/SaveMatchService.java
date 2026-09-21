@@ -3,9 +3,11 @@ package com.mlbbroadcast.match;
 
 import com.mlbbroadcast.configuration.BusinessException;
 import com.mlbbroadcast.configuration.ErrorCode;
+import com.mlbbroadcast.configuration.RedisConfiguration;
 import com.mlbbroadcast.external.mlbstatus.MlbApiClient;
 import com.mlbbroadcast.external.mlbstatus.dto.allPlays.AllPlaysResponse;
-import com.mlbbroadcast.external.mlbstatus.dto.lineUp.LineUpResponse;
+import com.mlbbroadcast.external.mlbstatus.dto.batterOrderLineUp.LineUpResponse;
+import com.mlbbroadcast.external.mlbstatus.dto.defenseLocation.DefenseLocationResponse;
 import com.mlbbroadcast.match.entities.LineUp;
 import com.mlbbroadcast.match.entities.Matches;
 import com.mlbbroadcast.match.entities.MatchplayLog;
@@ -16,7 +18,9 @@ import com.mlbbroadcast.match.repositories.MatchesRepository;
 import com.mlbbroadcast.match.repositories.PlayEventRepository;
 import com.mlbbroadcast.player.entity.PlayerMaster;
 import com.mlbbroadcast.player.repository.PlayerMasterRepository;
+import com.mlbbroadcast.util.RedisUtilities;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,9 +40,10 @@ public class SaveMatchService {
     private final PlayEventRepository playEventRepository;
     private final MatchesRepository matchesRepository;
     private final LineUpRepository lineUpRepository;
+    private final RedisUtilities redis;
 
     //전송 되어야 할 데이터: 선수 라인업 , MatchData(DataBase)
-    public void saveLineUp(Long matchId){
+    public void saveBattingOrderLineUpLineUp(Long matchId){
         Matches match = matchesRepository.findById(matchId).orElseThrow(()->new BusinessException(ErrorCode.MATCH_NOT_FOUND));
         LineUpResponse response =  mlbApiClient.getLineUp(match.getExternal_id());
         List<LineUp> battingOrderList = battingOrderListMaker(response.teams().home().battingOrder(), matchId);
@@ -53,6 +58,15 @@ public class SaveMatchService {
             lineUpList.add(LineUp.builder().matchId(matchId).playerId(player.getId()).battingOrder(idx+1).externalId(externalId).teamId(player.getTeamId()).build());
         }
         return lineUpList;
+    }
+
+
+    private DefenseLocationResponse defenseListMake(Long matchId,Long externalId){
+        //수비는 저장할 필요없는 가변적인 값. 매 타석 변경시 redis캐시 메모리에 갱신
+         DefenseLocationResponse response = mlbApiClient.getDefenseLineUp(externalId);
+        redis.save("DefenseLineUp:"+matchId, response);
+
+
     }
 
 

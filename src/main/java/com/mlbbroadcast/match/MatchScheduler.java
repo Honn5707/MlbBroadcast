@@ -24,15 +24,26 @@ public class MatchScheduler {
         taskScheduler.schedule(()->startPollingForMatchStart(matches.getId()), matches.getStartedTime().atZone(ZoneId.of("UTC")).toInstant());
 
     }
+    //스케쥴 주기는 추후 프로퍼티 설정으로 뺼꺼임
     public void startPollingForMatchStart(Long matchId){
-        ScheduledFuture<?> future = taskScheduler.scheduleWithFixedDelay(()->totalMatchService.openMatch(matchId),Duration.ofSeconds(60));
+        ScheduledFuture<?> future = taskScheduler.scheduleWithFixedDelay(()->totalMatchService.checkMatchStart(matchId),Duration.ofSeconds(60));
         runningTasks.put(matchId, future);
     }
+    //
+    public void startPollingForUpdateMatch(Long matchId, Long gamePk){
 
-    public void endedPollingForMatchEnded(Long matchId){
+        endedPolling(matchId);
+
+        ScheduledFuture<?> future = taskScheduler.scheduleWithFixedDelay(()->totalMatchService.fetchCurrentPlayData(matchId, gamePk),Duration.ofSeconds(10));
+
+        runningTasks.put(matchId, future);
+    }
+    public void endedPolling(Long matchId){
         ScheduledFuture<?> future =  runningTasks.remove(matchId);
         if(future!=null)
             future.cancel(false);
 
     }
+
+
 }

@@ -26,7 +26,6 @@ public class LineUp {
     @Column(name ="match_id")
     private Long matchId;
 
-
     @Column(name = "batting_order", nullable = true)
     private Integer battingOrder;
 

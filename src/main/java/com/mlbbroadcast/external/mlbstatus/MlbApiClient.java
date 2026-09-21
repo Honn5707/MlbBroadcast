@@ -3,12 +3,11 @@ package com.mlbbroadcast.external.mlbstatus;
 
 
 import com.mlbbroadcast.configuration.DefaultProperties;
-import com.mlbbroadcast.external.mlbstatus.dto.allPlays.AllPlays;
 import com.mlbbroadcast.external.mlbstatus.dto.allPlays.AllPlaysResponse;
 import com.mlbbroadcast.external.mlbstatus.dto.currentPlays.CurrentPlayResponse;
 import com.mlbbroadcast.external.mlbstatus.dto.defenseLocation.DefenseLocationResponse;
 import com.mlbbroadcast.external.mlbstatus.dto.gameStatus.GameStatusResponse;
-import com.mlbbroadcast.external.mlbstatus.dto.lineUp.LineUpResponse;
+import com.mlbbroadcast.external.mlbstatus.dto.batterOrderLineUp.LineUpResponse;
 import com.mlbbroadcast.external.mlbstatus.dto.scheduled.ScheduledListResponse;
 
 import org.springframework.stereotype.Component;
@@ -50,6 +49,7 @@ public class MlbApiClient {
     public GameStatusResponse getGameStatus(Long gamePk){
         return restClient.get().uri("/v1.1/game/{gamePk}/feed/live?fields="+ playInfoProperties.getGameStateFields(), gamePk).retrieve().body(GameStatusResponse.class);
     }
+
 
 
 

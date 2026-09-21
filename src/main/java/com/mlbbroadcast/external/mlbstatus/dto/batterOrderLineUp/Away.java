@@ -1,4 +1,4 @@
-package com.mlbbroadcast.external.mlbstatus.dto.lineUp;
+package com.mlbbroadcast.external.mlbstatus.dto.batterOrderLineUp;
 
 import java.util.List;
 import com.fasterxml.jackson.annotation.JsonProperty;

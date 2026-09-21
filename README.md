@@ -242,11 +242,16 @@ stateDiagram-v2
 ``` mermaid
 sequenceDiagram
 
+    loop (매 00시 schedulerList호출 )
+    MatchScheduler ->>  MatchService : getSchedule()
+    MatchService ->> APISTATUS: ScheduleRequest()
+    APISTATUS ->> MatchService : ScheduleResponse()
+    MatchService ->> MatchRepository: saveMatchSchedule(SchedulerFuture)
+    end
 
-    MatchScheduler ->> APISTATUS : CurrentDataRequest
-    APISTATUS ->> MatchScheduler : CurrentMatchResonse
-    loop MatchStatus == PLAYED || MatchStatus == SUSPENDED
-    MatchScheduler ->> MatchService :  matchLoad(matchData)
+
+    loop (경기가 시작될떄까지 )
+    MatchScheduler ->> MatchService :  checkMatchStart(matchData)
     alt status = FINISHED
 
         MatchService ->> EventPublisher : Event(FinishGame)
