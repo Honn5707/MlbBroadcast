@@ -3,9 +3,13 @@ default-properties:
   current-play:
     current-play-cache-duration: 1h
     current-data-key-index: "CurrentPlayIndex:"
-    current-play-fields: "currentPlay,count,balls,strikes,outs,matchup,batter,pitcher,id,fullName,pitchIndex,runnerIndex,runners,movement,originBase,start,end,outBase,isOut,details,event,eventType,runner,isScoringEvent,playEvents,description,isStrike,isBall,isInPlay,index,atBatIndex,type,code,pitchData,startSpeed,endSpeed"
+    current-play-fields: "currentPlay,count,balls,strikes,outs,matchup,batter,pitcher,id,fullName,pitchIndex,runnerIndex,runners,movement,originBase,start,end,outBase,isOut,details,event,eventType,runner,isScoringEvent,playEvents,description,isStrike,isBall,isInPlay,index,atBatIndex,inning, type,code,pitchData,startSpeed,endSpeed"
     all-play-fields: "allPlays,count,about,inning,balls,strikes,outs,matchup,batter,pitcher,id,fullName,pitchIndex,runnerIndex,runners,movement,originBase,start,end,outBase,isOut,details,event,eventType,runner,isScoringEvent,playEvents,description,isStrike,isBall,isInPlay,index,atBatIndex,type,code,pitchData,startSpeed,endSpeed"
   play-info:
     line-up-fields: "teams,away,home,batters,pitchers,bullpen,battingOrder"
     defense-location-fields: "defense,catcher,first,second,third,shortstop,left,right,center,id"
+    defense-location-index: "DefenseLocationIndex:"
     game-state-fields: "gameData,status,abstractGameState,reason"
+jwt:
+  expire-ms: 3600000
+  secret: ${JWT_SECRET}

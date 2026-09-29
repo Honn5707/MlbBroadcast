@@ -1,13 +1,26 @@
 package com.mlbbroadcast.external.mlbstatus.dto.scheduled;
 
 import java.util.List;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 public record ScheduledListResponse(
-	Integer totalGamesInProgress,
+
+	@JsonProperty("totalGamesInProgress")
+	int totalGamesInProgress,
+
+	@JsonProperty("copyright")
 	String copyright,
-	Integer totalItems,
-	Integer totalGames,
-	Integer totalEvents,
+
+	@JsonProperty("totalItems")
+	int totalItems,
+
+	@JsonProperty("totalGames")
+	int totalGames,
+
+	@JsonProperty("totalEvents")
+	int totalEvents,
+
+	@JsonProperty("dates")
 	List<DatesItem> dates
 ) {
 }

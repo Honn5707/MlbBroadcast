@@ -13,7 +13,6 @@ import lombok.Setter;
 @Entity
 @Table(name = "LineUp")
 @Getter
-@Setter
 @NoArgsConstructor
 public class LineUp {
 
@@ -32,14 +31,12 @@ public class LineUp {
     @Column(name="team_id")
     private Long teamId;
 
-    @Column(name="position")
-    private Long position;
 
     @Column(name="external_id")
     private int externalId;
 
     @Builder
-    public LineUp(Long playerId, Long matchId, PlayerPosition position, Integer battingOrder, Long teamId ,int externalId){
+    public LineUp(Long playerId, Long matchId, Integer battingOrder, Long teamId ,int externalId){
 
         this.playerId = playerId;
         this.matchId = matchId;

@@ -1,36 +1,45 @@
-package com.mlbbroadcast.match;
+package com.mlbbroadcast.match.service;
 
 
 import com.mlbbroadcast.configuration.BusinessException;
 import com.mlbbroadcast.configuration.ErrorCode;
-import com.mlbbroadcast.configuration.RedisConfiguration;
 import com.mlbbroadcast.external.mlbstatus.MlbApiClient;
+import com.mlbbroadcast.external.mlbstatus.dto.allPlays.About;
 import com.mlbbroadcast.external.mlbstatus.dto.allPlays.AllPlaysResponse;
 import com.mlbbroadcast.external.mlbstatus.dto.batterOrderLineUp.LineUpResponse;
-import com.mlbbroadcast.external.mlbstatus.dto.defenseLocation.DefenseLocationResponse;
+import com.mlbbroadcast.external.mlbstatus.dto.scheduled.GamesItem;
+import com.mlbbroadcast.external.mlbstatus.dto.scheduled.ScheduledListResponse;
+import com.mlbbroadcast.match.MatchScheduler;
 import com.mlbbroadcast.match.entities.LineUp;
 import com.mlbbroadcast.match.entities.Matches;
 import com.mlbbroadcast.match.entities.MatchplayLog;
 import com.mlbbroadcast.match.entities.PlayEvent;
+import com.mlbbroadcast.match.enums.MatchStatus;
 import com.mlbbroadcast.match.repositories.LineUpRepository;
 import com.mlbbroadcast.match.repositories.MatchPlaylogRepository;
 import com.mlbbroadcast.match.repositories.MatchesRepository;
 import com.mlbbroadcast.match.repositories.PlayEventRepository;
 import com.mlbbroadcast.player.entity.PlayerMaster;
 import com.mlbbroadcast.player.repository.PlayerMasterRepository;
-import com.mlbbroadcast.util.RedisUtilities;
+import com.mlbbroadcast.team.TeamMaster;
+import com.mlbbroadcast.team.TeamMasterRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.redis.core.RedisTemplate;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
-import static reactor.netty.http.HttpConnectionLiveness.log;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SaveMatchService {
@@ -40,12 +49,47 @@ public class SaveMatchService {
     private final PlayEventRepository playEventRepository;
     private final MatchesRepository matchesRepository;
     private final LineUpRepository lineUpRepository;
-    private final RedisUtilities redis;
+    private final TotalMatchService totalMatchService;
+    private final TeamMasterRepository teamMasterRepository;
+    private final MatchScheduler matchScheduler;
 
+
+    //scheduled 데이터를 호출 ( 파라메터로부터 +5days )
+
+    @Transactional
+    public void saveScheduledMatches(LocalDate date){
+        ScheduledListResponse response = mlbApiClient.getListOfSchedule(date);
+        if(response.dates().isEmpty()){
+            log.info("로그:"+date+": 경기일정 없음");
+            return;
+        }
+        List<GamesItem> gamesItemList = response.dates().getFirst().games();
+        Map<Integer, TeamMaster> activeTeams = teamMasterRepository.findAllByIsActive(true);
+        Set<Integer> matchExternalIds = matchesRepository.findExistingExternalIds(gamesItemList.stream().map(GamesItem::gamePk).toList());
+        List<Matches> matchesList = gamesItemList.stream().filter(gamesItem ->!matchExternalIds.contains(gamesItem.gamePk())).map(gamesItem ->
+        {
+            Long homeTeamId = activeTeams.get(gamesItem.teams().home().team().id()).getId();
+            Long visitTeamId = activeTeams.get(gamesItem.teams().away().team().id()).getId();
+
+
+            //매 시즌이 시작될떄 팀 마스터테이블을 등록 << 시즌중 팀 해체 X. 즉, 팀id가 존재하지않을경우 예외발생
+            if(homeTeamId == null || visitTeamId == null) throw new BusinessException(ErrorCode.TEAM_NOT_FOUND);
+            return Matches.builder().homeTeamId(homeTeamId).visitTeamId(visitTeamId).matchStatus(MatchStatus.BEFORE).externalId(gamesItem.gamePk()).seasonYear(gamesItem.season()).scheduledStartedTime(Instant.parse(gamesItem.gameDate()).atZone(ZoneId.of("UTC")).toLocalDateTime()).build();
+
+
+        }).toList();
+        //matchList가 비어있지않을때(스케쥴이 존재할때)
+        if(!matchesList.isEmpty()) {
+
+            List<Matches> savedMatches = matchesRepository.saveAll(matchesList);
+            savedMatches.forEach(matchScheduler::scheduleMatchStart);
+        }
+    }
     //전송 되어야 할 데이터: 선수 라인업 , MatchData(DataBase)
-    public void saveBattingOrderLineUpLineUp(Long matchId){
+    @Transactional
+    public void saveBattingOrderLineUp(Long matchId){
         Matches match = matchesRepository.findById(matchId).orElseThrow(()->new BusinessException(ErrorCode.MATCH_NOT_FOUND));
-        LineUpResponse response =  mlbApiClient.getLineUp(match.getExternal_id());
+        LineUpResponse response =  mlbApiClient.getLineUp(match.getExternalId());
         List<LineUp> battingOrderList = battingOrderListMaker(response.teams().home().battingOrder(), matchId);
         battingOrderList.addAll(battingOrderListMaker(response.teams().away().battingOrder(), matchId));
         lineUpRepository.saveAll(battingOrderList);
@@ -60,21 +104,25 @@ public class SaveMatchService {
         return lineUpList;
     }
 
-
-    private DefenseLocationResponse defenseListMake(Long matchId,Long externalId){
-        //수비는 저장할 필요없는 가변적인 값. 매 타석 변경시 redis캐시 메모리에 갱신
-         DefenseLocationResponse response = mlbApiClient.getDefenseLineUp(externalId);
-        redis.save("DefenseLineUp:"+matchId, response);
-
-
-    }
-
-
-
     //   타석 종료 DB데이터 갱신하는 메서드
     @Transactional
-    public void updateAtBat(Long matchId, Long gamePk, int atBatIndex){
+    public void saveAtBat(Long matchId, int gamePk, int atBatIndex){
         AllPlaysResponse response = mlbApiClient.getAllPlays(gamePk);
+
+        if(response.allPlays().isEmpty()){
+            log.info("현재 갱신된 타석 데이터가 존재하지 않습니다.");
+            return;
+        }
+        About lastInningAbout = response.allPlays().getLast().about();
+
+        MatchplayLog lastMatchLog = matchPlaylogRepository.findByLatestMatchPlayLog(matchId).orElse(null);
+
+        //response, playEvent의 마지막 요소의 이닝필드가 변화되었을떄
+        if (lastMatchLog !=null &&
+                ( (lastInningAbout.inning() > lastMatchLog.getInning()) ||
+                ( lastInningAbout.isTopInning() != lastMatchLog.getIsTopInning())) )
+        { totalMatchService.updateInning(matchId, gamePk); }
+
         List<MatchplayLog> matchplayLogList = response.allPlays().stream().filter(play -> play.atBatIndex() > atBatIndex) .map(allPlays -> {
 
             PlayerMaster batter = playerMasterRepository.findByExternalId(allPlays.matchup().batter().id()).orElse(null);
@@ -84,6 +132,7 @@ public class SaveMatchService {
                     pitcherId(pitcher==null? null: pitcher.getId())
                     .resultDescription(allPlays.result().description())
                     .inning(allPlays.about().inning())
+                    .isTopInning(allPlays.about().isTopInning())
                     .build();
 
 
@@ -92,6 +141,7 @@ public class SaveMatchService {
             log.warn("updateAtBat 호출됐지만 새로 저장할 타석이 없음: matchId={}, atBatIndex={}", matchId, atBatIndex);
             return;
         }
+
 
         //saveAll -> matchPlayLogId리턴
         List<MatchplayLog> savedLogs = matchPlaylogRepository.saveAll(matchplayLogList);

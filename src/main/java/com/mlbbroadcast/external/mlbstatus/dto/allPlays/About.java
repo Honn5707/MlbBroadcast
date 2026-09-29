@@ -5,13 +5,13 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public record About(
 
 	@JsonProperty("inning")
-	int inning,
+	Integer inning,
 
 	@JsonProperty("atBatIndex")
 	int atBatIndex,
 
-	@JsonProperty("halfInning")
-	String halfInning,
+	@JsonProperty("isTopInning")
+	boolean isTopInning,
 
 	@JsonProperty("isComplete")
 	boolean isComplete

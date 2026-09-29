@@ -42,10 +42,13 @@ public class MatchplayLog {
     @Column(name = "inning", nullable = false)
     private int inning;
 
+    @Column(name = "is_top_inning", nullable = false)
+    private Boolean isTopInning;
+
 
     @Builder
     public MatchplayLog(Long matchId, Integer atBatIndex, Long batterId, Long pitcherId, int batterExternalId, int pitcherExternalId,
-                        String resultDescription, int inning) {
+                        String resultDescription, int inning, Boolean isTopInning) {
         this.matchId = matchId;
         this.atBatIndex = atBatIndex;
         this.batterId = batterId;
@@ -54,5 +57,6 @@ public class MatchplayLog {
         this.pitcherExternalId = pitcherExternalId;
         this.resultDescription = resultDescription;
         this.inning = inning;
+        this.isTopInning = isTopInning;
     }
 }

@@ -23,13 +23,15 @@ public class TeamMaster {
     private Division division;
 
     @Column(name = "external_id", nullable = false)
-    private int external_id;
+    private int externalId;
 
-
+    @Column(name = "is_active")
+    private boolean isActive;
     @Builder
     public TeamMaster(String name, Division division, int external_id){
         this.name = name;
         this.division = division;
-        this.external_id = external_id;
+        this.externalId= external_id;
+        isActive=true;
     }
 }

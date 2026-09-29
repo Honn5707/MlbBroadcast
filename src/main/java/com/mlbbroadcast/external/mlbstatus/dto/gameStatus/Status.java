@@ -1,7 +1,6 @@
 package com.mlbbroadcast.external.mlbstatus.dto.gameStatus;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import jakarta.annotation.Nullable;
 
 public record Status(
 
@@ -9,7 +8,6 @@ public record Status(
 	String reason,
 
 	@JsonProperty("abstractGameState")
-	@Nullable
 	String abstractGameState
 ) {
 }

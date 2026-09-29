@@ -12,6 +12,11 @@ public interface MatchPlaylogRepository extends JpaRepository<MatchplayLog, Long
 
 
 
-    @Query("SELECT MAX(m.atBatIndex) FROM MatchplayLog m WHERE m.matchId = :matchId")
-    Optional<Integer> findByLatestAtBatIndex(@Param("matchId") Long matchId);
+    @Query("SELECT MAX(m.id) FROM MatchplayLog m WHERE m.matchId = :matchId")
+    Optional<MatchplayLog> findByLatestMatchPlayLog(@Param("matchId") Long matchId);
+
+    @Query("SELECT MAX(m.inning)  FROM MatchplayLog m WHERE m.matchId = :matchId")
+    Optional<Integer> findByBiggestAtBatInning(@Param("matchId") Long matchId);
+
+
 }

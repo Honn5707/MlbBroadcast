@@ -27,6 +27,7 @@ public class DefaultProperties {
         private String gameStateFields;
         private String lineUpFields;
         private String DefenseLocationFields;
+        private String DefenseLocationIndex;
 
     }
 

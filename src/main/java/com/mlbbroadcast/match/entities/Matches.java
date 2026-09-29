@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "Matches")
 @Getter
-@Setter
+
 @NoArgsConstructor
 public class Matches {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -26,14 +26,14 @@ public class Matches {
     @Column(name = "visit_team_id", nullable = false)
     private Long visitTeamId;
 
-    @Column(name = "home_team_score", nullable = false)
-    private int homeTeamScore;
-    @Column(name = "visit_team_score", nullable = false)
-    private int visitTeamScore;
+    @Column(name = "home_team_score", nullable = true)
+    private Integer homeTeamScore;
+    @Column(name = "visit_team_score", nullable = true)
+    private Integer visitTeamScore;
 
     //NONE, HOME, VISIT
     @Enumerated(EnumType.STRING)
-    @Column(name = "win_side", nullable = false)
+    @Column(name = "win_side", nullable = true)
     private Side winSide;
 
     //BEFORE, PLAY, FINISHED
@@ -41,34 +41,39 @@ public class Matches {
     @Column(name = "match_status", nullable = false)
     private MatchStatus matchStatus;
 
-    @Column(name = "started_time", nullable = true)
-    private LocalDateTime startedTime;
+    @Column(name = "scheduled_started_time", nullable = false)
+    private LocalDateTime scheduledStartedTime;
+
+    @Column(name = "real_started_time", nullable = true)
+    private LocalDateTime realStartedTime;
 
     @Column(name = "ended_time", nullable = true)
     private LocalDateTime endedTime;
 
     @Column(name = "season_year", nullable = false)
-    private int seasonYear;
+    private String seasonYear;
+
+
 
     @Column(name = "external_id", nullable = false)
-    private Long external_id;
+    private int externalId;
 
 
     @Builder
-    public Matches(Long homeTeamId, Long visitTeamId, int homeTeamScore, int visitTeamScore, Side winSide, MatchStatus matchStatus, LocalDateTime startedTime, LocalDateTime endedTime, int seasonYear, Long external_id){
+    public Matches(Long homeTeamId, Long visitTeamId, MatchStatus matchStatus, LocalDateTime scheduledStartedTime,  String seasonYear, int externalId){
 
         this.homeTeamId = homeTeamId;
         this.visitTeamId = visitTeamId;
-        this.homeTeamScore = homeTeamScore;
-        this.visitTeamScore = visitTeamScore;
-        this.winSide = winSide;
         this.matchStatus = matchStatus;
-        this.startedTime = startedTime;
-        this.endedTime = endedTime;
+        this.scheduledStartedTime = scheduledStartedTime;
         this.seasonYear = seasonYear;
-        this.external_id = external_id;
+        this.externalId = externalId;
 
     }
 
+
+    public void matchStatusChange(MatchStatus matchStatus){this.matchStatus=matchStatus;}
+
+    public void matchStartTimeSet(LocalDateTime localDateTime){this.realStartedTime = localDateTime;}
 
 }

@@ -24,6 +24,10 @@ public record CurrentPlayResponse(
 	List<PlayEventsItem> playEvents,
 
 	@JsonProperty("matchup")
-	Matchup matchup
+	Matchup matchup,
+
+	@JsonProperty("result")
+	Result result
+	
 ) {
 }

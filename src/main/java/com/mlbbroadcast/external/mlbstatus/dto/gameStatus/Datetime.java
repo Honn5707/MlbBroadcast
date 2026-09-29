@@ -2,9 +2,9 @@ package com.mlbbroadcast.external.mlbstatus.dto.gameStatus;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-public record GameStatusResponse(
+public record Datetime(
 
-	@JsonProperty("gameData")
-	GameData gameData
+	@JsonProperty("dateTime")
+	String dateTime
 ) {
 }
