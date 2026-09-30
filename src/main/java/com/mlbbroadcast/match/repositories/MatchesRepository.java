@@ -11,8 +11,8 @@ import java.util.Set;
 
 public interface MatchesRepository extends JpaRepository<Matches, Long> {
 
-    boolean existsByExternalId(int externalId);
+    boolean existsByGamePk(int gamePk);
 
-    @Query("SELECT m.externalId FROM Matches m where m.externalId IN: game_pk")
-    Set<Integer> findExistingExternalIds(@Param("game_pk") List<Integer> gamePks);
+    @Query("SELECT m.gamePk FROM Matches m where m.gamePk IN :game_pk")
+    Set<Integer> findExistingGamePk(@Param("game_pk") List<Integer> gamePks);
 }

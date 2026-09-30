@@ -7,14 +7,15 @@ import com.mlbbroadcast.external.mlbstatus.MlbApiClient;
 import com.mlbbroadcast.external.mlbstatus.dto.allPlays.About;
 import com.mlbbroadcast.external.mlbstatus.dto.allPlays.AllPlaysResponse;
 import com.mlbbroadcast.external.mlbstatus.dto.batterOrderLineUp.LineUpResponse;
+import com.mlbbroadcast.external.mlbstatus.dto.defenseLocation.DefenseLocationResponse;
 import com.mlbbroadcast.external.mlbstatus.dto.scheduled.GamesItem;
 import com.mlbbroadcast.external.mlbstatus.dto.scheduled.ScheduledListResponse;
-import com.mlbbroadcast.match.MatchScheduler;
 import com.mlbbroadcast.match.entities.LineUp;
 import com.mlbbroadcast.match.entities.Matches;
 import com.mlbbroadcast.match.entities.MatchplayLog;
 import com.mlbbroadcast.match.entities.PlayEvent;
 import com.mlbbroadcast.match.enums.MatchStatus;
+import com.mlbbroadcast.match.event.MatchScheduledSaveEvent;
 import com.mlbbroadcast.match.repositories.LineUpRepository;
 import com.mlbbroadcast.match.repositories.MatchPlaylogRepository;
 import com.mlbbroadcast.match.repositories.MatchesRepository;
@@ -23,19 +24,17 @@ import com.mlbbroadcast.player.entity.PlayerMaster;
 import com.mlbbroadcast.player.repository.PlayerMasterRepository;
 import com.mlbbroadcast.team.TeamMaster;
 import com.mlbbroadcast.team.TeamMasterRepository;
+import com.mlbbroadcast.util.RedisUtilities;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 
@@ -49,9 +48,9 @@ public class SaveMatchService {
     private final PlayEventRepository playEventRepository;
     private final MatchesRepository matchesRepository;
     private final LineUpRepository lineUpRepository;
-    private final TotalMatchService totalMatchService;
     private final TeamMasterRepository teamMasterRepository;
-    private final MatchScheduler matchScheduler;
+    private final ApplicationEventPublisher eventPublisher;
+    private final RedisUtilities redis;
 
 
     //scheduled 데이터를 호출 ( 파라메터로부터 +5days )
@@ -64,8 +63,8 @@ public class SaveMatchService {
             return;
         }
         List<GamesItem> gamesItemList = response.dates().getFirst().games();
-        Map<Integer, TeamMaster> activeTeams = teamMasterRepository.findAllByIsActive(true);
-        Set<Integer> matchExternalIds = matchesRepository.findExistingExternalIds(gamesItemList.stream().map(GamesItem::gamePk).toList());
+        Map<Integer, TeamMaster> activeTeams = teamMasterRepository.findAllByIsActive(true).stream().collect(Collectors.toMap(TeamMaster::getExternalId, team->team));
+        Set<Integer> matchExternalIds = matchesRepository.findExistingGamePk(gamesItemList.stream().map(GamesItem::gamePk).toList());
         List<Matches> matchesList = gamesItemList.stream().filter(gamesItem ->!matchExternalIds.contains(gamesItem.gamePk())).map(gamesItem ->
         {
             Long homeTeamId = activeTeams.get(gamesItem.teams().home().team().id()).getId();
@@ -74,7 +73,7 @@ public class SaveMatchService {
 
             //매 시즌이 시작될떄 팀 마스터테이블을 등록 << 시즌중 팀 해체 X. 즉, 팀id가 존재하지않을경우 예외발생
             if(homeTeamId == null || visitTeamId == null) throw new BusinessException(ErrorCode.TEAM_NOT_FOUND);
-            return Matches.builder().homeTeamId(homeTeamId).visitTeamId(visitTeamId).matchStatus(MatchStatus.BEFORE).externalId(gamesItem.gamePk()).seasonYear(gamesItem.season()).scheduledStartedTime(Instant.parse(gamesItem.gameDate()).atZone(ZoneId.of("UTC")).toLocalDateTime()).build();
+            return Matches.builder().homeTeamId(homeTeamId).visitTeamId(visitTeamId).matchStatus(MatchStatus.BEFORE).gamePk(gamesItem.gamePk()).seasonYear(gamesItem.season()).scheduledStartedTime(Instant.parse(gamesItem.gameDate()).atZone(ZoneId.of("UTC")).toLocalDateTime()).build();
 
 
         }).toList();
@@ -82,14 +81,14 @@ public class SaveMatchService {
         if(!matchesList.isEmpty()) {
 
             List<Matches> savedMatches = matchesRepository.saveAll(matchesList);
-            savedMatches.forEach(matchScheduler::scheduleMatchStart);
+            savedMatches.forEach(matches ->  eventPublisher.publishEvent(new MatchScheduledSaveEvent(matches)));
         }
     }
     //전송 되어야 할 데이터: 선수 라인업 , MatchData(DataBase)
     @Transactional
     public void saveBattingOrderLineUp(Long matchId){
         Matches match = matchesRepository.findById(matchId).orElseThrow(()->new BusinessException(ErrorCode.MATCH_NOT_FOUND));
-        LineUpResponse response =  mlbApiClient.getLineUp(match.getExternalId());
+        LineUpResponse response =  mlbApiClient.getLineUp(match.getGamePk());
         List<LineUp> battingOrderList = battingOrderListMaker(response.teams().home().battingOrder(), matchId);
         battingOrderList.addAll(battingOrderListMaker(response.teams().away().battingOrder(), matchId));
         lineUpRepository.saveAll(battingOrderList);
@@ -121,7 +120,7 @@ public class SaveMatchService {
         if (lastMatchLog !=null &&
                 ( (lastInningAbout.inning() > lastMatchLog.getInning()) ||
                 ( lastInningAbout.isTopInning() != lastMatchLog.getIsTopInning())) )
-        { totalMatchService.updateInning(matchId, gamePk); }
+        { updateInning(matchId, gamePk); }
 
         List<MatchplayLog> matchplayLogList = response.allPlays().stream().filter(play -> play.atBatIndex() > atBatIndex) .map(allPlays -> {
 
@@ -181,4 +180,19 @@ public class SaveMatchService {
 
 
     }
+
+    public void saveDefenseLocationToRedis(Long matchId,int gamePk){
+        //수비는 저장할 필요없는 가변적인 값. 매 타석 변경시 redis캐시 메모리에 갱신
+        DefenseLocationResponse response = mlbApiClient.getDefenseLineUp(gamePk);
+        redis.save("DefenseLineUp:"+matchId, response);
+
+
+    }
+
+    //이닝 업데이트 (
+    private void updateInning(Long matchId, int gamePk){
+        saveDefenseLocationToRedis(matchId, gamePk);
+
+    }
+
 }

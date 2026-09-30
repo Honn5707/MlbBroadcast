@@ -30,10 +30,10 @@ public class MatchplayLog {
     @Column(name = "pitcher_id", nullable = true)
     private Long pitcherId;
 
-    @Column(name = "batter_id", nullable = false)
+    @Column(name = "batter_external_id", nullable = false)
     private int batterExternalId;
 
-    @Column(name = "pitcher_id", nullable = false)
+    @Column(name = "pitcher_external_id", nullable = false)
     private int pitcherExternalId;
 
     @Column(name = "result_description", nullable = true)

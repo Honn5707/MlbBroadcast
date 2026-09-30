@@ -55,19 +55,19 @@ public class Matches {
 
 
 
-    @Column(name = "external_id", nullable = false)
-    private int externalId;
+    @Column(name = "game_pk", nullable = false)
+    private int gamePk;
 
 
     @Builder
-    public Matches(Long homeTeamId, Long visitTeamId, MatchStatus matchStatus, LocalDateTime scheduledStartedTime,  String seasonYear, int externalId){
+    public Matches(Long homeTeamId, Long visitTeamId, MatchStatus matchStatus, LocalDateTime scheduledStartedTime,  String seasonYear, int gamePk){
 
         this.homeTeamId = homeTeamId;
         this.visitTeamId = visitTeamId;
         this.matchStatus = matchStatus;
         this.scheduledStartedTime = scheduledStartedTime;
         this.seasonYear = seasonYear;
-        this.externalId = externalId;
+        this.gamePk = gamePk;
 
     }
 

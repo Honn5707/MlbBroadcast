@@ -13,3 +13,13 @@ default-properties:
 jwt:
   expire-ms: 3600000
   secret: ${JWT_SECRET}
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/mlbbroadcast
+    username: root
+    password: link5707
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+
