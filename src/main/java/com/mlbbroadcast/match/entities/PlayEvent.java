@@ -21,7 +21,7 @@ public class PlayEvent {
     private Long matchPlayLogId;
 
 
-    @Column(name = "event", nullable = false)
+    @Column(name = "event", nullable = true)
     private String event;
 
     @Column(name = "pitch_index",nullable = true)

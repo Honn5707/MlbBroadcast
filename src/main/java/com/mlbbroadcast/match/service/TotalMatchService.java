@@ -4,9 +4,9 @@ package com.mlbbroadcast.match.service;
 import com.mlbbroadcast.configuration.BusinessException;
 import com.mlbbroadcast.configuration.DefaultProperties;
 import com.mlbbroadcast.configuration.ErrorCode;
-import com.mlbbroadcast.external.mlbstatus.MlbApiClient;
-import com.mlbbroadcast.external.mlbstatus.dto.currentPlays.CurrentPlayResponse;
-import com.mlbbroadcast.external.mlbstatus.dto.gameStatus.GameData;
+import com.mlbbroadcast.external.mlbStatus.MlbApiClient;
+import com.mlbbroadcast.external.mlbStatus.dto.currentPlays.CurrentPlay;
+import com.mlbbroadcast.external.mlbStatus.dto.gameStatus.GameData;
 import com.mlbbroadcast.match.entities.Matches;
 import com.mlbbroadcast.match.enums.MatchStatus;
 import com.mlbbroadcast.match.event.MatchEndedPollingEvent;
@@ -48,6 +48,8 @@ public class TotalMatchService {
         saveMatchService.saveDefenseLocationToRedis(matchId, gamePk);
         saveMatchService.saveBattingOrderLineUp(matchId);
         eventPublisher.publishEvent(new MatchStartedEvent(matchId, gamePk));
+
+
 
     }
 
@@ -94,13 +96,21 @@ public class TotalMatchService {
     // 해당 로직은 스케쥴 경기시간동안 스케쥴러가 10초마다 폴링. ->타석 종료 시, 타석데이터를 덮어씀
     public void fetchCurrentPlayData(Long matchId, int gamePk){
         String key =  configuration.getCurrentPlay().getCurrentDataKeyIndex() + matchId;
-        CurrentPlayResponse response = mlbApiClient.getCurrentPlay(gamePk);
-        CurrentPlayResponse cachedCurrentPlayValue = redis.load("currentPlay:"+key, CurrentPlayResponse.class);
+        CurrentPlay response = mlbApiClient.getCurrentPlay(gamePk).currentPlay();
+        log.info(""+response);
+        if(response.atBatIndex() == null){
+            log.info("타석데이터가 존재하지 않는 상태입니다: "+gamePk);
+            return;
+        }
+        CurrentPlay cachedCurrentPlayValue = redis.load("currentPlay:"+key, CurrentPlay.class);
         //현재 받아온 키가 기존키에서 갱신된 형태라면  타석 업데이트 및 DB세이브
-        if(cachedCurrentPlayValue ==null || cachedCurrentPlayValue.atBatIndex() < response.atBatIndex()) saveMatchService.saveAtBat(matchId, gamePk,response.atBatIndex());
+        if(cachedCurrentPlayValue ==null || cachedCurrentPlayValue.atBatIndex() < response.atBatIndex()){
+            saveMatchService.saveAtBat(matchId, gamePk);
+        }
         //이전데이터와 다른 데이터를 응답받았을 경우 받아온 데이터를 redis캐시 메모리에 저장후 웹소켓을 통한 전송
         if(!response.equals(cachedCurrentPlayValue)){
             redis.save("currentPlay:"+key, response);
+            log.info("현재 redis 키 저장 : " + key);
             //json데이터를  클라이언트에게 전송
             messagingTemplate.convertAndSend("/topic/games/" + matchId + "/current-plays", response);
 

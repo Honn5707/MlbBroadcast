@@ -1,5 +1,6 @@
 package com.mlbbroadcast.configuration;
 
+import com.mlbbroadcast.external.mlbStatus.dto.scheduled.Team;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -14,6 +15,9 @@ public class DefaultProperties {
 
     private final CurrentPlay currentPlay = new CurrentPlay();
     private final PlayInfo playInfo = new PlayInfo();
+    private final TeamProperties teamProperties = new TeamProperties();
+    private final PlayerProperties playerProperties = new PlayerProperties();
+
 //    application.yml참조
     @Getter@Setter
     public static class CurrentPlay{
@@ -29,6 +33,23 @@ public class DefaultProperties {
         private String DefenseLocationFields;
         private String DefenseLocationIndex;
 
+    }
+
+    @Getter@Setter
+    public static class TeamProperties{
+        private String teamDataFields;
+
+        private Integer alEastCode;
+        private Integer alCentralCode;
+        private Integer alWestCode;
+        private Integer nlEastCode;
+        private Integer nlCentralCode;
+        private Integer nlWestCode;
+    }
+
+    @Getter@Setter
+    public static class PlayerProperties{
+        private String playerDataFields;
     }
 
 

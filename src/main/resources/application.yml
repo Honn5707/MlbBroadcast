@@ -4,12 +4,23 @@ default-properties:
     current-play-cache-duration: 1h
     current-data-key-index: "CurrentPlayIndex:"
     current-play-fields: "currentPlay,count,balls,strikes,outs,matchup,batter,pitcher,id,fullName,pitchIndex,runnerIndex,runners,movement,originBase,start,end,outBase,isOut,details,event,eventType,runner,isScoringEvent,playEvents,description,isStrike,isBall,isInPlay,index,atBatIndex,inning, type,code,pitchData,startSpeed,endSpeed"
-    all-play-fields: "allPlays,count,about,inning,balls,strikes,outs,matchup,batter,pitcher,id,fullName,pitchIndex,runnerIndex,runners,movement,originBase,start,end,outBase,isOut,details,event,eventType,runner,isScoringEvent,playEvents,description,isStrike,isBall,isInPlay,index,atBatIndex,type,code,pitchData,startSpeed,endSpeed"
+    all-play-fields: "allPlays,count,about,inning,balls,strikes,outs,matchup,batter,pitcher,id,fullName,pitchIndex,runnerIndex,runners,movement,originBase,start,end,outBase,isOut,details,event,eventType,runner,isScoringEvent,playEvents,description,isStrike,isBall,isInPlay,index,atBatIndex,type,code,isTopInning,pitchData,startSpeed,endSpeed,result"
   play-info:
     line-up-fields: "teams,away,home,batters,pitchers,bullpen,battingOrder"
     defense-location-fields: "defense,catcher,first,second,third,shortstop,left,right,center,id"
     defense-location-index: "DefenseLocationIndex:"
-    game-state-fields: "gameData,status,abstractGameState,reason"
+    game-state-fields: "gameData,status,abstractGameState,reason,datetime,dateTime"
+  team-properties:
+    team-data-fields: "teams,id,name,season,division,id,shortName"
+    al-west-code: 200
+    al-east-code: 201
+    al-central-code: 202
+    nl-west-code: 203
+    nl-east-code: 204
+    nl-central-code: 205
+  player-properties:
+    player-data-fields: "roster,person,id,position,code,status,code,parentTeamId,jerseyNumber,fullName"
+
 jwt:
   expire-ms: 3600000
   secret: ${JWT_SECRET}
@@ -23,3 +34,8 @@ spring:
     hibernate:
       ddl-auto: update
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: scheduledtasks

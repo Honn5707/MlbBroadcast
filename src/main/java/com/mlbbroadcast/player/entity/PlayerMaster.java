@@ -24,6 +24,10 @@ public class PlayerMaster {
     @Column(name = "name", nullable = false)
     private String name;
 
+    @Column(name = "jersey_number", nullable = false)
+    private Integer jerseyNumber;
+
+
     @Column(name = "external_id", nullable = false)
     private int externalId;
 
@@ -33,5 +37,6 @@ public class PlayerMaster {
         this.position = position;
         this.name = name;
         this.externalId = externalId;
+
     }
 }

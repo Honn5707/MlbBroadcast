@@ -6,11 +6,12 @@ import org.springframework.security.core.parameters.P;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 
 public interface TeamMasterRepository extends JpaRepository<TeamMaster, Long> {
 
 
     @Query("SELECT m FROM TeamMaster m WHERE m.isActive = :isActive")
-    List<TeamMaster> findAllByIsActive(@Param("isActive") boolean isActive);
+    Set<TeamMaster> findAllByIsActive(@Param("isActive") boolean isActive);
 }

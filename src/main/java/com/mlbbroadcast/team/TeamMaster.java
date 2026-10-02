@@ -15,8 +15,11 @@ public class TeamMaster {
     @Id
     private Long id;
 
-    @Column(name = "name", nullable = false)
-    private String name;
+    @Column(name = "full_name", nullable = false)
+    private String fullName;
+
+    @Column(name = "short_name", nullable = false)
+    private String shortName;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "division", nullable = false)
@@ -27,11 +30,13 @@ public class TeamMaster {
 
     @Column(name = "is_active")
     private boolean isActive;
+
     @Builder
-    public TeamMaster(String name, Division division, int external_id){
-        this.name = name;
+    public TeamMaster(String fullName, String shortName, Division division, int externalId){
+        this.fullName = fullName;
+        this.shortName = shortName;
         this.division = division;
-        this.externalId= external_id;
+        this.externalId= externalId;
         isActive=true;
     }
 }
