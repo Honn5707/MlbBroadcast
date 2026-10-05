@@ -8,16 +8,11 @@ public record PlayerDataResponse(
 	@JsonProperty("roster")
 	List<RosterItem> roster,
 
-	@JsonProperty("copyright")
-	String copyright,
-
 	@JsonProperty("teamId")
 	Integer teamId,
 
 	@JsonProperty("rosterType")
-	String rosterType,
+	String rosterType
 
-	@JsonProperty("link")
-	String link
 ) {
 }

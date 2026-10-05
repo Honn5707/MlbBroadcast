@@ -61,8 +61,8 @@ public class MlbApiClient {
         return restClient.get().uri("/v1/teams?sportId=1&fields="+ teamProperties.getTeamDataFields()).retrieve().body(TeamDataResponse.class);
     }
 
-    public PlayerDataResponse getPlayerData(){
-        return restClient.get().uri("/v1/teams/133/roster?rosterType=40Man?fields="+ playerProperties.getPlayerDataFields()).retrieve().body(PlayerDataResponse.class);
+    public PlayerDataResponse getPlayerData(int teamExternalId){
+        return restClient.get().uri("/v1/teams/{teamExternalId}/roster?rosterType=40Man?fields="+ playerProperties.getPlayerDataFields(), teamExternalId).retrieve().body(PlayerDataResponse.class);
     }
 
 

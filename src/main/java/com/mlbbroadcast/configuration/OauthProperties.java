@@ -6,11 +6,11 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-@ConfigurationProperties("jwt")
+@ConfigurationProperties("oauth")
 @Getter
 @Setter
-public class jwtProperties {
-    private String secret;
-    private int expireMs;
-
+public class OauthProperties {
+    private String googleOauthId;
+    private String googleOauthSecret;
+    private String googleRedirectUri;
 }

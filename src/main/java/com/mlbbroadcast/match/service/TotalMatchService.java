@@ -97,7 +97,7 @@ public class TotalMatchService {
     public void fetchCurrentPlayData(Long matchId, int gamePk){
         String key =  configuration.getCurrentPlay().getCurrentDataKeyIndex() + matchId;
         CurrentPlay response = mlbApiClient.getCurrentPlay(gamePk).currentPlay();
-        log.info(""+response);
+
         if(response.atBatIndex() == null){
             log.info("타석데이터가 존재하지 않는 상태입니다: "+gamePk);
             return;

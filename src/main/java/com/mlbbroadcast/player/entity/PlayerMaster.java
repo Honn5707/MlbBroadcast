@@ -17,26 +17,30 @@ public class PlayerMaster {
     @Column(name = "team_id", nullable = false)
     private Long teamId;
 
-    @Enumerated(EnumType.STRING)
     @Column(name = "position", nullable = false)
-    private PlayerPosition position;
+    private String position;
 
     @Column(name = "name", nullable = false)
     private String name;
 
-    @Column(name = "jersey_number", nullable = false)
+    @Column(name = "jersey_number", nullable = true)
     private Integer jerseyNumber;
 
 
-    @Column(name = "external_id", nullable = false)
+    @Column(name = "external_id", nullable = false, unique = true)
     private int externalId;
 
     @Builder
-    public PlayerMaster(Long teamId, PlayerPosition position, String name, int externalId) {
+    public PlayerMaster(Long teamId, String position, String name, int externalId, Integer jerseyNumber) {
         this.teamId = teamId;
         this.position = position;
         this.name = name;
+        this.jerseyNumber = jerseyNumber;
         this.externalId = externalId;
 
+    }
+
+    public void changeTeamId(Long teamId){
+        this.teamId = teamId;
     }
 }

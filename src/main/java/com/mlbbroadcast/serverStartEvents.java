@@ -4,6 +4,8 @@ import com.mlbbroadcast.match.MatchScheduler;
 import com.mlbbroadcast.match.entities.Matches;
 import com.mlbbroadcast.match.enums.MatchStatus;
 import com.mlbbroadcast.match.repositories.MatchesRepository;
+import com.mlbbroadcast.player.PlayerService;
+import com.mlbbroadcast.player.entity.PlayerMaster;
 import com.mlbbroadcast.team.TeamScheduler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -19,10 +21,15 @@ public class serverStartEvents {
     private final TeamScheduler teamScheduler;
     private final MatchScheduler matchScheduler;
     private final MatchesRepository matchesRepository;
+    private final PlayerService playerService;
 
     @EventListener(ApplicationReadyEvent.class)
-    public void startMatchEvent(){
+    public void startServerEvent(){
         teamScheduler.teamMasterUpdateScheduler();
+
+
+
+        playerService.updatePlayerMaster();
 
         matchScheduler.receiveScheduledPolling();
 

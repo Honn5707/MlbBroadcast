@@ -1,4 +1,4 @@
-package com.mlbbroadcast.player.entity;
+package com.mlbbroadcast.player;
 
 
 import lombok.RequiredArgsConstructor;
@@ -11,7 +11,6 @@ public class PlayerScheduler {
     private final PlayerService playerService;
     @Scheduled(cron = "0 0 0 * * 1")
     public void updatePlayerMaster(){
-
-
+        playerService.updatePlayerMaster();
     }
 }

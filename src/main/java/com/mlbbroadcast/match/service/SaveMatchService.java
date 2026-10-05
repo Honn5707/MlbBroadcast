@@ -93,11 +93,11 @@ public class SaveMatchService {
     //전송 되어야 할 데이터: 선수 라인업 , MatchData(DataBase)
     @Transactional
     public void saveBattingOrderLineUp(Long matchId){
-//        Matches match = matchesRepository.findById(matchId).orElseThrow(()->new BusinessException(ErrorCode.MATCH_NOT_FOUND));
-//        LineUpResponse response =  mlbApiClient.getLineUp(match.getGamePk());
-//        List<LineUp> battingOrderList = battingOrderListMaker(response.teams().home().battingOrder(), matchId);
-//        battingOrderList.addAll(battingOrderListMaker(response.teams().away().battingOrder(), matchId));
-//        lineUpRepository.saveAll(battingOrderList);
+        Matches match = matchesRepository.findById(matchId).orElseThrow(()->new BusinessException(ErrorCode.MATCH_NOT_FOUND));
+        LineUpResponse response =  mlbApiClient.getLineUp(match.getGamePk());
+        List<LineUp> battingOrderList = battingOrderListMaker(response.teams().home().battingOrder(), matchId);
+        battingOrderList.addAll(battingOrderListMaker(response.teams().away().battingOrder(), matchId));
+        lineUpRepository.saveAll(battingOrderList);
     }
     private List<LineUp> battingOrderListMaker(List<Integer> battingOrderExternalIdList, Long matchId){
         List<LineUp> lineUpList = new ArrayList<>();
@@ -120,7 +120,7 @@ public class SaveMatchService {
         }
         About lastInningAbout = response.allPlays().getLast().about();
 
-        MatchplayLog lastMatchLog = matchPlaylogRepository.findByLatestMatchPlayLog(matchId).orElse(null);
+        MatchplayLog lastMatchLog = matchPlaylogRepository.findFirstByMatchIdOrderByAtBatIndexDesc(matchId).orElse(null);
         int lastMatchAtBatIndex = lastMatchLog == null ? -1 : lastMatchLog.getAtBatIndex();
         //response, playEvent의 마지막 요소의 이닝필드가 변화되었을떄
 
@@ -163,6 +163,7 @@ public class SaveMatchService {
 
                 if (playEventsItem.type().equals("pitch"))
                     playEvent = PlayEvent.builder().matchPlayLogId(realId)
+                            .pitchIndex(playEventsItem.pitchNumber())
                             .event(playEventsItem.details().event())
                             .description(playEventsItem.details().description())
                             .startSpeed(playEventsItem.pitchData().startSpeed())
