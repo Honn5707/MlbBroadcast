@@ -18,29 +18,30 @@ public class Members {
     @Id
     private Long id;
 
-    @Column(name = "provider_id", nullable = false)
-    private Long providerId;
+    @Column(name = "provider_id", nullable = false, unique = true)
+    private String providerId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "provider_type", nullable = false)
     private Provider providerType;
 
-    @Column(name = "nickname", nullable = false)
+
+    @Column(name = "nickname", nullable = false, unique = true)
     private String nickname;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
     @Column(name = "coin_remain", nullable = false)
-    private Long coinRemain;
+    private Integer coinRemain;
 
     @Builder
-    public Members(Long providerId, Provider providerType, String nickname,
-                   LocalDateTime createdAt, Long coinRemain) {
+    public Members(String providerId, Provider providerType, String nickname,
+                   LocalDateTime createdAt) {
         this.providerId = providerId;
         this.providerType = providerType;
         this.nickname = nickname;
         this.createdAt = createdAt;
-        this.coinRemain = coinRemain;
+        coinRemain = 0;
     }
 }

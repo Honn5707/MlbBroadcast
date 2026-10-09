@@ -37,6 +37,10 @@ public class PlayerService {
             try {
                 response = mlbApiClient.getPlayerData(team.getExternalId());
             }catch (Exception e){log.warn("팀 로스터 조회 실패: team={}", team.getId(), e); continue;}
+            if(response == null || response.roster() == null){
+                log.warn("팀 로스터 응답이 비어있습니다: team={}", team.getId());
+                continue;
+            }
 
             for (RosterItem roster : response.roster()) {
                 PlayerMaster player = playerList.get(roster.person().id());

@@ -2,9 +2,12 @@ package com.mlbbroadcast.match.service;
 
 
 import com.mlbbroadcast.configuration.BusinessException;
+import com.mlbbroadcast.configuration.DefaultProperties;
 import com.mlbbroadcast.configuration.ErrorCode;
 import com.mlbbroadcast.external.mlbStatus.MlbApiClient;
-import com.mlbbroadcast.external.mlbStatus.dto.allPlays.About;
+import com.mlbbroadcast.external.mlbStatus.dto.allPlays.AllPlays;
+import com.mlbbroadcast.external.mlbStatus.dto.allPlays.Details;
+import com.mlbbroadcast.external.mlbStatus.dto.allPlays.PitchData;
 import com.mlbbroadcast.external.mlbStatus.dto.allPlays.AllPlaysResponse;
 import com.mlbbroadcast.external.mlbStatus.dto.batterOrderLineUp.LineUpResponse;
 import com.mlbbroadcast.external.mlbStatus.dto.defenseLocation.DefenseLocationResponse;
@@ -35,7 +38,9 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.*;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 
 @Slf4j
@@ -50,6 +55,7 @@ public class SaveMatchService {
     private final LineUpRepository lineUpRepository;
     private final TeamMasterRepository teamMasterRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final DefaultProperties properties;
     private final RedisUtilities redis;
 
 
@@ -114,28 +120,30 @@ public class SaveMatchService {
     public void saveAtBat(Long matchId, int gamePk){
         AllPlaysResponse response = mlbApiClient.getAllPlays(gamePk);
 
-        if(response.allPlays().isEmpty()){
+        if(response == null || response.allPlays() == null || response.allPlays().isEmpty()){
             log.info("현재 갱신된 타석 데이터가 존재하지 않습니다.");
             return;
         }
-        About lastInningAbout = response.allPlays().getLast().about();
 
         MatchplayLog lastMatchLog = matchPlaylogRepository.findFirstByMatchIdOrderByAtBatIndexDesc(matchId).orElse(null);
         int lastMatchAtBatIndex = lastMatchLog == null ? -1 : lastMatchLog.getAtBatIndex();
-        //response, playEvent의 마지막 요소의 이닝필드가 변화되었을떄
 
+        //진행 중인 타석은 결과가 확정되지 않았으므로 저장하지 않음 (저장 시 이후 결과가 갱신되지 않음)
+        Predicate<AllPlays> isNewCompletedPlay = play -> play.atBatIndex() != null
+                && play.atBatIndex() > lastMatchAtBatIndex
+                && (play.about() == null || !Boolean.FALSE.equals(play.about().isComplete()));
+        List<AllPlays> newPlays = response.allPlays().stream().filter(isNewCompletedPlay).toList();
 
-
-        List<MatchplayLog> matchplayLogList = response.allPlays().stream().filter(play -> play.atBatIndex() > lastMatchAtBatIndex) .map(allPlays -> {
+        List<MatchplayLog> matchplayLogList = newPlays.stream().map(allPlays -> {
 
             PlayerMaster batter = playerMasterRepository.findByExternalId(allPlays.matchup().batter().id()).orElse(null);
 
             PlayerMaster pitcher = playerMasterRepository.findByExternalId(allPlays.matchup().pitcher().id()).orElse(null);
             return  MatchplayLog.builder().matchId(matchId).atBatIndex(allPlays.atBatIndex()).batterId(batter==null?null: batter.getId()).batterExternalId(allPlays.matchup().batter().id()).pitcherExternalId(allPlays.matchup().pitcher().id()).
                     pitcherId(pitcher==null? null: pitcher.getId())
-                    .resultDescription(allPlays.result().description())
-                    .inning(allPlays.about().inning())
-                    .isTopInning(allPlays.about().isTopInning())
+                    .resultDescription(allPlays.result() == null ? null : allPlays.result().description())
+                    .inning(allPlays.about() == null ? null : allPlays.about().inning())
+                    .isTopInning(allPlays.about() == null ? null : allPlays.about().isTopInning())
                     .build();
 
 
@@ -145,35 +153,43 @@ public class SaveMatchService {
             return;
         }
 
-        log.info("playLog저장완료");
         //saveAll -> matchPlayLogId리턴
         List<MatchplayLog> savedLogs = matchPlaylogRepository.saveAll(matchplayLogList);
+        log.info("playLog저장완료");
         //인덱스로 탐색 시간을 줄이기
         Map<Integer, MatchplayLog> saveLogsMap = savedLogs.stream()
                 .collect(Collectors.toMap(MatchplayLog::getAtBatIndex, log -> log));
 
-        List<PlayEvent> totalPlayEventList =  response.allPlays().stream().filter(play -> play.atBatIndex() > lastMatchAtBatIndex).flatMap(allPlays -> {
+        List<PlayEvent> totalPlayEventList =  newPlays.stream().flatMap(allPlays -> {
 
             MatchplayLog matchplayLog = saveLogsMap.get(allPlays.atBatIndex());
             if(matchplayLog == null) throw new BusinessException(ErrorCode.MATCH_LOG_NOT_FOUND);
             Long realId = matchplayLog.getId();
+            if(allPlays.playEvents() == null) return Stream.empty();
             List<PlayEvent> abBatPlayEventList = allPlays.playEvents().stream().map(playEventsItem -> {
+
+                Details details = playEventsItem.details();
+                String event = details == null ? null : details.event();
+                String description = details == null ? null : details.description();
 
                 PlayEvent playEvent;
 
-                if (playEventsItem.type().equals("pitch"))
+                //자동 볼/스트라이크(피치클락 위반 등)는 pitchData, 구종 정보가 없을 수 있음
+                if ("pitch".equals(playEventsItem.type())) {
+                    PitchData pitchData = playEventsItem.pitchData();
                     playEvent = PlayEvent.builder().matchPlayLogId(realId)
                             .pitchIndex(playEventsItem.pitchNumber())
-                            .event(playEventsItem.details().event())
-                            .description(playEventsItem.details().description())
-                            .startSpeed(playEventsItem.pitchData().startSpeed())
-                            .endSpeed(playEventsItem.pitchData().endSpeed())
-                            .pitchTypeDescription(playEventsItem.details().type().description())
+                            .event(event)
+                            .description(description)
+                            .startSpeed(pitchData == null ? null : pitchData.startSpeed())
+                            .endSpeed(pitchData == null ? null : pitchData.endSpeed())
+                            .pitchTypeDescription(details == null || details.type() == null ? null : details.type().description())
                             .build();
+                }
                 else playEvent = PlayEvent.builder()
                         .matchPlayLogId(realId)
-                        .event(playEventsItem.details().event())
-                        .description(playEventsItem.details().description())
+                        .event(event)
+                        .description(description)
                         .build();
                 return playEvent;
             }).toList();
@@ -189,7 +205,7 @@ public class SaveMatchService {
     public void saveDefenseLocationToRedis(Long matchId,int gamePk){
         //수비는 저장할 필요없는 가변적인 값. 매 타석 변경시 redis캐시 메모리에 갱신
         DefenseLocationResponse response = mlbApiClient.getDefenseLineUp(gamePk);
-        redis.save("DefenseLineUp:"+matchId, response);
+        redis.save("DefenseLineUp:"+matchId, response, properties.getCurrentPlay().getCurrentPlayCacheDuration());
 
 
     }

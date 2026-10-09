@@ -25,6 +25,8 @@ public class DefaultProperties {
         private String currentDataKeyIndex;
         private String currentPlayFields;
         private String allPlayFields;
+        //마지막 타석 갱신 이후 이 시간 동안 변화가 없으면 경기 종료 여부를 확인
+        private Duration gameStatusCheckInterval;
 }
     @Getter@Setter
     public static class PlayInfo{
@@ -32,6 +34,8 @@ public class DefaultProperties {
         private String lineUpFields;
         private String DefenseLocationFields;
         private String DefenseLocationIndex;
+        //시작 예정 시간으로부터 이 시간이 지나도 경기가 시작되지 않으면 시작 감지 폴링 종료
+        private Duration matchStartPollingLimit;
 
     }
 

@@ -3,12 +3,14 @@ default-properties:
   current-play:
     current-play-cache-duration: 1h
     current-data-key-index: "CurrentPlayIndex:"
+    game-status-check-interval: 5m
     current-play-fields: "currentPlay,count,balls,strikes,outs,matchup,batter,pitcher,id,fullName,pitchIndex,runnerIndex,runners,movement,originBase,start,end,outBase,isOut,details,event,eventType,runner,isScoringEvent,playEvents,description,isStrike,isBall,isInPlay,index,atBatIndex,inning, type,code,pitchData,startSpeed,endSpeed"
-    all-play-fields: "allPlays,count,pitchNumber,about,inning,balls,strikes,outs,matchup,batter,pitcher,id,fullName,pitchIndex,runnerIndex,runners,movement,originBase,start,end,outBase,isOut,details,event,eventType,runner,isScoringEvent,playEvents,description,isStrike,isBall,isInPlay,index,atBatIndex,type,code,isTopInning,pitchData,startSpeed,endSpeed,result"
+    all-play-fields: "allPlays,count,pitchNumber,about,inning,balls,strikes,outs,matchup,batter,pitcher,id,fullName,pitchIndex,runnerIndex,runners,movement,originBase,start,end,outBase,isOut,details,event,eventType,runner,isScoringEvent,playEvents,description,isStrike,isBall,isInPlay,index,atBatIndex,type,code,isTopInning,isComplete,pitchData,startSpeed,endSpeed,result"
   play-info:
     line-up-fields: "teams,away,home,batters,pitchers,bullpen,battingOrder"
     defense-location-fields: "defense,catcher,first,second,third,shortstop,left,right,center,id"
     defense-location-index: "DefenseLocationIndex:"
+    match-start-polling-limit: 12h
     game-state-fields: "gameData,status,abstractGameState,reason,datetime,dateTime"
   team-properties:
     team-data-fields: "teams,id,name,season,division,id,shortName"
@@ -23,7 +25,6 @@ default-properties:
 
 jwt:
   expire-ms: 3600000
-  secret: ${JWT_SECRET}
 
 spring:
   datasource:
@@ -40,7 +41,5 @@ management:
     web:
       exposure:
         include: scheduledtasks
-oauth:
-  google-oauth-id: ${GOOGLE_OAUTH_ID}
-  google-oauth-secret: ${GOOGLE_OAUTH_SECRET}
-  google-redirect-uri: ${GOOGLE_REDIRECT_URI}
+auth:
+  register-temp-token-duration: 15m

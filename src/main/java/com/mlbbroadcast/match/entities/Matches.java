@@ -76,4 +76,6 @@ public class Matches {
 
     public void matchStartTimeSet(LocalDateTime localDateTime){this.realStartedTime = localDateTime;}
 
+    public void matchEndTimeSet(LocalDateTime localDateTime){this.endedTime = localDateTime;}
+
 }

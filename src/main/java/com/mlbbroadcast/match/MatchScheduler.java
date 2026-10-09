@@ -12,6 +12,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 
 import java.time.Duration;
@@ -29,6 +30,8 @@ public class MatchScheduler {
     private final TotalMatchService totalMatchService;
     //스케쥴 데이터를 저장하기 위한 필드
     private final Map<Long,ScheduledFuture<?>> runningTasks = new ConcurrentHashMap<>();
+    //경기 시작 시간 대기 중인(아직 폴링 전) 스케쥴. 같은 경기가 중복 등록되지 않도록 관리
+    private final Map<Long,ScheduledFuture<?>> pendingStarts = new ConcurrentHashMap<>();
 
     @EventListener
     public void handleMatchStart(MatchStartedEvent event){
@@ -40,7 +43,8 @@ public class MatchScheduler {
         endedPolling(event.matchId());
     }
 
-    @EventListener
+    //경기 저장 트랜잭션이 커밋된 뒤에 스케쥴 등록 (롤백된 경기가 스케쥴되지 않도록)
+    @TransactionalEventListener(fallbackExecution = true)
     public void handleMatchScheduledSave(MatchScheduledSaveEvent event){
 
         scheduleMatchStart(event.match());
@@ -59,31 +63,43 @@ public class MatchScheduler {
     }
 
     //매치시간에 맞춰 실행
-    public void scheduleMatchStart(Matches matches){
-        log.info("로그:[" + matches.getId() + "]스케쥴이 정상적으로 등록되었습니다");
-        taskScheduler.schedule(()->startPollingForMatchStart(matches.getId()), matches.getScheduledStartedTime().atZone(ZoneId.of("UTC")).toInstant());
+    //서버 시작 시 신규 저장 이벤트와 restoreSchedules가 같은 경기를 함께 등록하므로 중복 등록 방지
+    public synchronized void scheduleMatchStart(Matches matches){
+        Long matchId = matches.getId();
+        if(pendingStarts.containsKey(matchId) || runningTasks.containsKey(matchId)){
+            log.info("로그:[{}]이미 등록된 스케쥴입니다", matchId);
+            return;
+        }
+        ScheduledFuture<?> future = taskScheduler.schedule(()->startPollingForMatchStart(matchId), matches.getScheduledStartedTime().atZone(ZoneId.of("UTC")).toInstant());
+        pendingStarts.put(matchId, future);
+        log.info("로그:[{}]스케쥴이 정상적으로 등록되었습니다", matchId);
     }
     //스케쥴 주기는 추후 프로퍼티 설정으로 뺼꺼임
 
-    public void startPollingForMatchStart(Long matchId){
+    //scheduleMatchStart와 동기화하여 대기 스케쥴 제거가 등록보다 먼저 일어나지 않도록 함
+    public synchronized void startPollingForMatchStart(Long matchId){
+        pendingStarts.remove(matchId);
         log.info("경기 시작 감지 폴링 등록: matchId={}", matchId);
         ScheduledFuture<?> future = taskScheduler.scheduleWithFixedDelay(()->totalMatchService.checkMatchStart(matchId),Duration.ofSeconds(60));
-        runningTasks.put(matchId, future);
+        replaceRunningTask(matchId, future);
 
     }
     public void startPollingForUpdateMatch(Long matchId, int gamePk){
-
-        endedPolling(matchId);
-
         ScheduledFuture<?> future = taskScheduler.scheduleWithFixedDelay(()->totalMatchService.fetchCurrentPlayData(matchId, gamePk),Duration.ofSeconds(10));
-
-        runningTasks.put(matchId, future);
+        replaceRunningTask(matchId, future);
     }
     public void endedPolling(Long matchId){
-        ScheduledFuture<?> future =  runningTasks.remove(matchId);
-        if(future!=null)
-            future.cancel(false);
+        cancel(pendingStarts.remove(matchId));
+        cancel(runningTasks.remove(matchId));
+    }
 
+    //기존 폴링을 덮어쓸 때 이전 작업을 취소하지 않으면 참조를 잃은 채 계속 실행됨
+    private void replaceRunningTask(Long matchId, ScheduledFuture<?> future){
+        cancel(runningTasks.put(matchId, future));
+    }
+
+    private void cancel(ScheduledFuture<?> future){
+        if(future != null) future.cancel(false);
     }
 
 

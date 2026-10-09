@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 
@@ -18,4 +19,6 @@ public interface MatchesRepository extends JpaRepository<Matches, Long> {
     Set<Integer> findExistingGamePk(@Param("game_pk") List<Integer> gamePks);
 
     List<Matches> findAllByMatchStatus(MatchStatus matchStatus);
+
+    Optional<Matches> findByGamePk(int gamePk);
 }
