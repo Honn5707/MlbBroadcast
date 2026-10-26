@@ -1,14 +1,17 @@
 package com.mlbbroadcast.player.entity;
 
-
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
+//투수 시즌 누적 스탯. (player_external_id, season_year)당 한 행, API의 시즌 누적값으로 덮어씀 (docs/design/MatchSystem 7장)
 @Entity
-@Table(name = "player_pitcher_record")
+@Table(name = "player_pitcher_record",
+        uniqueConstraints = @UniqueConstraint(name = "uk_player_pitcher_record_player_season", columnNames = {"player_external_id", "season_year"}))
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class PlayerPitcherRecord {
@@ -16,23 +19,42 @@ public class PlayerPitcherRecord {
     @Id
     private Long id;
 
-    @Column(name = "player_id", nullable = false)
+    @Column(name = "player_external_id", nullable = false)
+    private int playerExternalId;
+
+    //마스터에 없는 선수는 null (선수 동기화 후 재매핑 대상)
+    @Column(name = "player_id", nullable = true)
     private Long playerId;
 
-    @Column(name = "match_id", nullable = false)
-    private Long matchId;
+    @Column(name = "season_year", nullable = false)
+    private String seasonYear;
 
-    @Column(name = "player_era", nullable = false)
-    private double playerEra;
+    @Column(name = "team_external_id", nullable = true)
+    private Integer teamExternalId;
 
-    @Column(name = "player_whip", nullable = false)
-    private double playerWhip;
+    //계산 불가(이닝 없음 등)면 null
+    @Column(name = "player_era", nullable = true)
+    private Double playerEra;
+
+    @Column(name = "player_whip", nullable = true)
+    private Double playerWhip;
+
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
 
     @Builder
-    public PlayerPitcherRecord(Long playerId, Long matchId, double playerEra, double playerWhip) {
+    public PlayerPitcherRecord(int playerExternalId, Long playerId, String seasonYear) {
+        this.playerExternalId = playerExternalId;
         this.playerId = playerId;
-        this.matchId = matchId;
-        this.playerEra = playerEra;
-        this.playerWhip = playerWhip;
+        this.seasonYear = seasonYear;
+    }
+
+    //시즌 누적값으로 덮어쓰기 (증분 합산 금지)
+    public void overwrite(Long playerId, Integer teamExternalId, Double era, Double whip, LocalDateTime updatedAt){
+        if(playerId != null) this.playerId = playerId;
+        this.teamExternalId = teamExternalId;
+        this.playerEra = era;
+        this.playerWhip = whip;
+        this.updatedAt = updatedAt;
     }
 }

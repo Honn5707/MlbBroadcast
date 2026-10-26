@@ -8,7 +8,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "play_event")
+@Table(name = "play_event", indexes = @Index(name = "idx_play_event_match_play_log_id", columnList = "match_play_log_id"))
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class PlayEvent {

@@ -8,6 +8,13 @@ public record Status(
 	String reason,
 
 	@JsonProperty("abstractGameState")
-	String abstractGameState
+	String abstractGameState,
+
+	//Delayed, Postponed, Cancelled 등 세부 상태
+	@JsonProperty("detailedState")
+	String detailedState
 ) {
+	public Status(String reason, String abstractGameState){
+		this(reason, abstractGameState, null);
+	}
 }

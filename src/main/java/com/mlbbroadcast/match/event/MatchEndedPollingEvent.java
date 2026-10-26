@@ -1,4 +1,5 @@
 package com.mlbbroadcast.match.event;
 
-public record MatchEndedPollingEvent(Long matchId) {
+//폴링 종료 요청 (MatchScheduler가 처리)
+public record MatchEndedPollingEvent(Long matchId, int gamePk) {
 }

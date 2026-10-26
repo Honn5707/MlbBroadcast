@@ -8,7 +8,12 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "match_play_log")
+@Table(name = "match_play_log",
+        uniqueConstraints = @UniqueConstraint(name = "uk_match_play_log_match_at_bat", columnNames = {"match_id", "at_bat_index"}),
+        indexes = {
+                @Index(name = "idx_match_play_log_batter_external_id", columnList = "batter_external_id"),
+                @Index(name = "idx_match_play_log_pitcher_external_id", columnList = "pitcher_external_id")
+        })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class MatchplayLog {

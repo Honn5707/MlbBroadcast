@@ -9,6 +9,7 @@ public enum ErrorCode {
     PLAYER_NOT_FOUND(HttpStatus.NOT_FOUND, "선수를 찾을 수 없습니다"),
     TEAM_NOT_FOUND(HttpStatus.NOT_FOUND, "팀을 찾을 수 없습니다"),
     MATCH_NOT_FOUND(HttpStatus.NOT_FOUND, "경기를 찾을 수 없습니다"),
+    MATCH_ENDED(HttpStatus.GONE, "종료된 경기입니다"),
     MATCH_LOG_NOT_FOUND(HttpStatus.NOT_FOUND, "지정된 매치로그 데이터를 찾을 수 없습니다"),
     MLB_STATS_NOT_RESPONSE(HttpStatus.NOT_FOUND, "응답값을 정상적으로 불러오지 못했습니다"),
     OAUTH_NOT_RESPONSE(HttpStatus.BAD_GATEWAY, "구글 api서버 오류가 발생하였습니다."),

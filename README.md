@@ -297,7 +297,7 @@ sequenceDiagram
 
 ```mermaid
 stateDiagram-v2
-    [*] --> PENDING : 베팅 생성(코인 차감)
+    [*] --> PENDING: 베팅 생성(코인 차감)
     PENDING --> WON : 승리
     PENDING --> LOST : 패배
     PENDING --> CANCELED : 취소(우천 등)

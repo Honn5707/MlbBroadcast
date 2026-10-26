@@ -4,10 +4,14 @@ import com.mlbbroadcast.match.entities.Matches;
 import com.mlbbroadcast.match.event.MatchEndedPollingEvent;
 import com.mlbbroadcast.match.event.MatchScheduledSaveEvent;
 import com.mlbbroadcast.match.event.MatchStartedEvent;
+import com.mlbbroadcast.match.event.MatchStatusPollingEvent;
+import com.mlbbroadcast.match.polling.JobLock;
+import com.mlbbroadcast.match.polling.PollingPhase;
+import com.mlbbroadcast.match.polling.PollingRegistry;
+import com.mlbbroadcast.match.service.MatchStatusService;
 import com.mlbbroadcast.match.service.TotalMatchService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -15,92 +19,108 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 
+import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 
+//경기별 폴링 등록/전환/종료. 중복 방어는 PollingRegistry(gamePk 키)가 담당
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class MatchScheduler {
+    private static final ZoneId UTC = ZoneId.of("UTC");
+    private static final Duration STATUS_POLLING_DELAY = Duration.ofSeconds(60);
+    private static final Duration LIVE_POLLING_DELAY = Duration.ofSeconds(10);
+    private static final String SCHEDULE_SYNC_JOB = "match-schedule-sync";
+
     private final TaskScheduler taskScheduler;
     private final TotalMatchService totalMatchService;
-    //스케쥴 데이터를 저장하기 위한 필드
-    private final Map<Long,ScheduledFuture<?>> runningTasks = new ConcurrentHashMap<>();
-    //경기 시작 시간 대기 중인(아직 폴링 전) 스케쥴. 같은 경기가 중복 등록되지 않도록 관리
-    private final Map<Long,ScheduledFuture<?>> pendingStarts = new ConcurrentHashMap<>();
+    private final MatchStatusService matchStatusService;
+    private final PollingRegistry pollingRegistry;
+    private final JobLock jobLock;
+    private final Clock clock;
 
     @EventListener
     public void handleMatchStart(MatchStartedEvent event){
-        startPollingForUpdateMatch(event.matchId(), event.gamePk());
+        startLivePolling(event.matchId(), event.gamePk());
+    }
+
+    @EventListener
+    public void handleStatusPolling(MatchStatusPollingEvent event){
+        startStatusPolling(event.matchId(), event.gamePk());
     }
 
     @EventListener
     public void handleMatchEnded(MatchEndedPollingEvent event){
-        endedPolling(event.matchId());
+        endPolling(event.matchId(), event.gamePk());
     }
 
     //경기 저장 트랜잭션이 커밋된 뒤에 스케쥴 등록 (롤백된 경기가 스케쥴되지 않도록)
     @TransactionalEventListener(fallbackExecution = true)
     public void handleMatchScheduledSave(MatchScheduledSaveEvent event){
-
         scheduleMatchStart(event.match());
-
     }
 
 
 //    --------------------------------------------------------------------------
-    //최초 1회 실행시 확인
 
-
+    //서버 구동 실행과 cron 실행이 겹치지 않도록 JobLock으로 감쌈
     @Scheduled(cron = "0 0 0 * * *", zone = "UTC")
     public void receiveScheduledPolling(){
-
-        totalMatchService.updateScheduleListForMatch(LocalDate.now(ZoneId.of("UTC")));
+        jobLock.runExclusively(SCHEDULE_SYNC_JOB,
+                () -> totalMatchService.updateScheduleListForMatch(LocalDate.now(clock.withZone(UTC))));
     }
 
-    //매치시간에 맞춰 실행
-    //서버 시작 시 신규 저장 이벤트와 restoreSchedules가 같은 경기를 함께 등록하므로 중복 등록 방지
-    public synchronized void scheduleMatchStart(Matches matches){
+    //시작 시각이 미래면 그 시각에 status 폴링 시작, 이미 지났으면(재시작 따라잡기) 즉시 status 폴링
+    //구동 + 복구 + 일일 배치가 같은 경기를 등록해도 PollingRegistry가 하나만 허용
+    public boolean scheduleMatchStart(Matches matches){
         Long matchId = matches.getId();
-        if(pendingStarts.containsKey(matchId) || runningTasks.containsKey(matchId)){
-            log.info("로그:[{}]이미 등록된 스케쥴입니다", matchId);
-            return;
+        int gamePk = matches.getGamePk();
+        Instant startAt = matches.getScheduledStartedTime().atZone(UTC).toInstant();
+
+        boolean registered;
+        PollingPhase phase;
+        if(startAt.isAfter(clock.instant())){
+            phase = PollingPhase.WAITING_START;
+            registered = pollingRegistry.register(gamePk, phase,
+                    () -> taskScheduler.schedule(() -> startStatusPolling(matchId, gamePk), startAt));
+        } else {
+            phase = PollingPhase.STATUS;
+            registered = pollingRegistry.register(gamePk, phase, () -> statusPollingTask(matchId, gamePk));
         }
-        ScheduledFuture<?> future = taskScheduler.schedule(()->startPollingForMatchStart(matchId), matches.getScheduledStartedTime().atZone(ZoneId.of("UTC")).toInstant());
-        pendingStarts.put(matchId, future);
-        log.info("로그:[{}]스케쥴이 정상적으로 등록되었습니다", matchId);
-    }
-    //스케쥴 주기는 추후 프로퍼티 설정으로 뺼꺼임
 
-    //scheduleMatchStart와 동기화하여 대기 스케쥴 제거가 등록보다 먼저 일어나지 않도록 함
-    public synchronized void startPollingForMatchStart(Long matchId){
-        pendingStarts.remove(matchId);
-        log.info("경기 시작 감지 폴링 등록: matchId={}", matchId);
-        ScheduledFuture<?> future = taskScheduler.scheduleWithFixedDelay(()->totalMatchService.checkMatchStart(matchId),Duration.ofSeconds(60));
-        replaceRunningTask(matchId, future);
-
-    }
-    public void startPollingForUpdateMatch(Long matchId, int gamePk){
-        ScheduledFuture<?> future = taskScheduler.scheduleWithFixedDelay(()->totalMatchService.fetchCurrentPlayData(matchId, gamePk),Duration.ofSeconds(10));
-        replaceRunningTask(matchId, future);
-    }
-    public void endedPolling(Long matchId){
-        cancel(pendingStarts.remove(matchId));
-        cancel(runningTasks.remove(matchId));
+        if(!registered){
+            log.info("이미 폴링이 등록된 경기라 등록 거부: matㅇㅁㅇㅇㅇchId={}, gamePk={}", matchId, gamePk);
+            return false;
+        }
+        matchStatusService.recordPollingPhase(matchId, phase);
+        log.info("경기 폴링 등록: matchId={}, gamePk={}, phase={}", matchId, gamePk, phase);
+        return true;
     }
 
-    //기존 폴링을 덮어쓸 때 이전 작업을 취소하지 않으면 참조를 잃은 채 계속 실행됨
-    private void replaceRunningTask(Long matchId, ScheduledFuture<?> future){
-        cancel(runningTasks.put(matchId, future));
+    public void startStatusPolling(Long matchId, int gamePk){
+        pollingRegistry.replace(gamePk, PollingPhase.STATUS, () -> statusPollingTask(matchId, gamePk));
+        matchStatusService.recordPollingPhase(matchId, PollingPhase.STATUS);
+        log.info("status 폴링 시작: matchId={}, gamePk={}", matchId, gamePk);
     }
 
-    private void cancel(ScheduledFuture<?> future){
-        if(future != null) future.cancel(false);
+    public void startLivePolling(Long matchId, int gamePk){
+        pollingRegistry.replace(gamePk, PollingPhase.LIVE_PLAY,
+                () -> taskScheduler.scheduleWithFixedDelay(() -> totalMatchService.fetchCurrentPlayData(matchId, gamePk), LIVE_POLLING_DELAY));
+        matchStatusService.recordPollingPhase(matchId, PollingPhase.LIVE_PLAY);
+        log.info("타석 폴링 시작: matchId={}, gamePk={}", matchId, gamePk);
     }
 
+    public void endPolling(Long matchId, int gamePk){
+        pollingRegistry.cancel(gamePk);
+        matchStatusService.recordPollingPhase(matchId, null);
+        log.info("폴링 종료: matchId={}, gamePk={}", matchId, gamePk);
+    }
 
+    private ScheduledFuture<?> statusPollingTask(Long matchId, int gamePk){
+        return taskScheduler.scheduleWithFixedDelay(() -> totalMatchService.checkMatchStatus(matchId, gamePk), STATUS_POLLING_DELAY);
+    }
 }

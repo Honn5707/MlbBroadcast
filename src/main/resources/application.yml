@@ -11,7 +11,10 @@ default-properties:
     defense-location-fields: "defense,catcher,first,second,third,shortstop,left,right,center,id"
     defense-location-index: "DefenseLocationIndex:"
     match-start-polling-limit: 12h
-    game-state-fields: "gameData,status,abstractGameState,reason,datetime,dateTime"
+    delay-before-start-limit: 12h
+    delay-in-game-limit: 6h
+    ended-match-disconnect-delay: 10m
+    game-state-fields: "gameData,status,abstractGameState,detailedState,reason,datetime,dateTime,liveData,linescore,teams,home,away,runs"
   team-properties:
     team-data-fields: "teams,id,name,season,division,id,shortName"
     al-west-code: 200
@@ -22,6 +25,15 @@ default-properties:
     nl-central-code: 205
   player-properties:
     player-data-fields: "roster,person,id,position,code,status,code,parentTeamId,jerseyNumber,fullName"
+    season-stats-fields: "stats,splits,season,stat,avg,obp,slg,ops,era,whip,team,id,player"
+    #시즌 스탯 배치 실행 시각 (UTC 15:00 = KST 00:00, 미국 경기 종료 이후). [미결] 일일 마감 시각 확정 시 변경
+    stats-batch-cron: "0 0 15 * * *"
+  #외부 API 재시도: 5s -> 10s -> 20s ... 상한 60s
+  mlb-api-retry:
+    initial-delay: 5s
+    max-delay: 60s
+    #[미결] 재시도 한도 수치. 확정 전 임시값
+    max-attempts: 5
 
 jwt:
   expire-ms: 3600000

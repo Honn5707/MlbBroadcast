@@ -12,6 +12,7 @@ import com.mlbbroadcast.external.mlbStatus.dto.batterOrderLineUp.LineUpResponse;
 
 import com.mlbbroadcast.external.mlbStatus.dto.playerData.PlayerDataResponse;
 import com.mlbbroadcast.external.mlbStatus.dto.scheduled.ScheduledListResponse;
+import com.mlbbroadcast.external.mlbStatus.dto.seasonStats.SeasonStatsResponse;
 import com.mlbbroadcast.external.mlbStatus.dto.teamData.TeamDataResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -59,6 +60,12 @@ public class MlbApiClient {
 
     public TeamDataResponse getTeamData(){
         return restClient.get().uri("/v1/teams?sportId=1&fields="+ teamProperties.getTeamDataFields()).retrieve().body(TeamDataResponse.class);
+    }
+
+    //시즌 누적 스탯 (전체 선수). group: hitting | pitching
+    public SeasonStatsResponse getSeasonStats(String group, int season){
+        return restClient.get().uri("/v1/stats?stats=season&group={group}&season={season}&sportId=1&playerPool=ALL&limit=5000&fields=" + playerProperties.getSeasonStatsFields(), group, season)
+                .retrieve().body(SeasonStatsResponse.class);
     }
 
     public PlayerDataResponse getPlayerData(int teamExternalId){

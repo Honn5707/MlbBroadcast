@@ -39,4 +39,8 @@ public class TeamMaster {
         this.externalId= externalId;
         isActive=true;
     }
+
+    public void activate(){this.isActive = true;}
+
+    public void deactivate(){this.isActive = false;}
 }
