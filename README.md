@@ -314,7 +314,7 @@ stateDiagram-v2
 sequenceDiagram
     
 
-    BetService ->> MatchService : is Match Befoe?
+    BetService ->> MatchService : is Match Before?
     MatchService -->> BetService : response
     alt MathStatus = BEFORE
     BetService ->> BetRepository : isParticePainted(memberId, MatchId)

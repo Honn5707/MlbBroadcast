@@ -16,7 +16,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
     //보호 경로. 현재는 필터 검증용 임시 경로만 보호하고 나머지는 모두 허용 (docs/design/AuthSystem.md 참고)
     //웹소켓 핸드셰이크(/ws)는 허용하고 인증은 STOMP CONNECT에서 처리
-    private static final String[] PROTECTED_PATHS = {"/api/me"};
+    private static final String[] PROTECTED_PATHS = {"/api/me", "/api/bets", "/api/bets/**"};
 
     private final JwtAuthenticator jwtAuthenticator;
     private final JwtAuthenticationEntryPoint authenticationEntryPoint;

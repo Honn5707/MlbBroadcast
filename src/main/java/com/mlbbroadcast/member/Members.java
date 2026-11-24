@@ -44,4 +44,16 @@ public class Members {
         this.createdAt = createdAt;
         coinRemain = 0;
     }
+
+    //코인 변경은 CoinTransactionService를 통해서만 호출 (기록과 함께 변경). 회원 행은 비관적 락으로 조회된 상태여야 함
+    public void spendCoin(int amount){
+        if(amount <= 0) throw new IllegalArgumentException("차감 코인은 양수여야 합니다: " + amount);
+        if(coinRemain < amount) throw new IllegalStateException("잔액 부족: remain=" + coinRemain + ", amount=" + amount);
+        this.coinRemain -= amount;
+    }
+
+    public void earnCoin(int amount){
+        if(amount <= 0) throw new IllegalArgumentException("지급 코인은 양수여야 합니다: " + amount);
+        this.coinRemain = Math.addExact(this.coinRemain, amount);
+    }
 }

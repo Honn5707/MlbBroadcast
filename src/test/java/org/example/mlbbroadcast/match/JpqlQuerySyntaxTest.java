@@ -33,7 +33,9 @@ class JpqlQuerySyntaxTest {
                 .build();
         sessionFactory = new MetadataSources(registry)
                 .addAnnotatedClasses(Matches.class, MatchplayLog.class, PlayEvent.class, LineUp.class, PlayerMaster.class,
-                        PlayerHitterRecord.class, PlayerPitcherRecord.class)
+                        PlayerHitterRecord.class, PlayerPitcherRecord.class,
+                        com.mlbbroadcast.bet.Bet.class, com.mlbbroadcast.bet.settlement.BetSettlement.class,
+                        com.mlbbroadcast.coin.CoinTransaction.class, com.mlbbroadcast.member.Members.class)
                 .buildMetadata().buildSessionFactory();
     }
 
@@ -50,6 +52,10 @@ class JpqlQuerySyntaxTest {
             "UPDATE MatchplayLog m SET m.pitcherId = (SELECT p.id FROM PlayerMaster p WHERE p.externalId = m.pitcherExternalId) WHERE m.pitcherId IS NULL AND EXISTS (SELECT 1 FROM PlayerMaster p2 WHERE p2.externalId = m.pitcherExternalId)",
             "UPDATE LineUp l SET l.playerId = (SELECT p.id FROM PlayerMaster p WHERE p.externalId = l.externalId) WHERE l.playerId IS NULL AND EXISTS (SELECT 1 FROM PlayerMaster p2 WHERE p2.externalId = l.externalId)",
             "UPDATE PlayerHitterRecord r SET r.playerId = (SELECT p.id FROM PlayerMaster p WHERE p.externalId = r.playerExternalId) WHERE r.playerId IS NULL AND EXISTS (SELECT 1 FROM PlayerMaster p2 WHERE p2.externalId = r.playerExternalId)",
+            "UPDATE Bet b SET b.status = :result, b.settledAt = :now WHERE b.id = :id AND b.status IN :from",
+            "UPDATE Bet b SET b.status = com.mlbbroadcast.bet.BetStatus.ERROR WHERE b.id = :id AND b.status = com.mlbbroadcast.bet.BetStatus.PENDING",
+            "UPDATE Bet b SET b.retryCount = b.retryCount + 1 WHERE b.id = :id AND b.status IN (com.mlbbroadcast.bet.BetStatus.PENDING, com.mlbbroadcast.bet.BetStatus.ERROR)",
+            "UPDATE Bet b SET b.status = com.mlbbroadcast.bet.BetStatus.FAILED WHERE b.id = :id AND b.retryCount >= :limit AND b.status IN (com.mlbbroadcast.bet.BetStatus.PENDING, com.mlbbroadcast.bet.BetStatus.ERROR)",
             "UPDATE PlayerPitcherRecord r SET r.playerId = (SELECT p.id FROM PlayerMaster p WHERE p.externalId = r.playerExternalId) WHERE r.playerId IS NULL AND EXISTS (SELECT 1 FROM PlayerMaster p2 WHERE p2.externalId = r.playerExternalId)"
     })
     void updateQueries(String hql) {
@@ -61,7 +67,11 @@ class JpqlQuerySyntaxTest {
     @ValueSource(strings = {
             "SELECT m.atBatIndex FROM MatchplayLog m WHERE m.matchId = :matchId",
             "SELECT m.gamePk FROM Matches m where m.gamePk IN :game_pk",
-            "SELECT m FROM Matches m WHERE m.id = :id"
+            "SELECT m FROM Matches m WHERE m.id = :id",
+            "SELECT m.id FROM Matches m WHERE m.matchStatus IN :statuses AND m.endedTime >= :from AND m.endedTime <= :to",
+            "SELECT COALESCE(SUM(b.amount), 0) FROM Bet b WHERE b.matchId = :matchId",
+            "SELECT COALESCE(SUM(b.amount), 0) FROM Bet b WHERE b.matchId = :matchId AND b.betSide = :side",
+            "SELECT m FROM Members m WHERE m.id = :id"
     })
     void selectQueries(String hql) {
         assertThatCode(() -> sessionFactory.inSession(session -> session.createSelectionQuery(hql, Object.class))).doesNotThrowAnyException();

@@ -44,6 +44,9 @@ spring:
     username: root
     password: link5707
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      #비관적 락 대기 한도 3초 (MySQL은 쿼리 단위 FOR UPDATE WAIT를 지원하지 않아 커넥션 단위로 설정. 기본값 50초)
+      connection-init-sql: "SET SESSION innodb_lock_wait_timeout = 3"
   jpa:
     hibernate:
       ddl-auto: update
@@ -55,3 +58,17 @@ management:
         include: scheduledtasks
 auth:
   register-temp-token-duration: 15m
+
+#베팅 시스템 (docs/design/Bet/BetSystemDesign.md)
+bet:
+  min-amount: 100
+  #등급 시스템 도입 전 최솟값 기준 (등급별 10,000 ~ 10,000,000)
+  max-amount: 10000
+  #락 획득 실패 시 Bet 단위 재시도
+  lock-retry-max-attempts: 5
+  lock-retry-min-wait: 500ms
+  lock-retry-max-wait: 1000ms
+  #보정 스캔: 종료 후 5분 ~ 2일 경기, 보정 4회 실패 시 FAILED
+  scan-delay-after-end: 5m
+  scan-window: 2d
+  max-correction-attempts: 4

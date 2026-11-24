@@ -7,11 +7,19 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 
+//상태 변경은 엔티티 메서드가 아니라 BetRepository의 조건부 UPDATE로만 수행 (확인-변경 사이 다른 정산 개입 방지)
 @Entity
-@Table(name = "bet")
+@Table(name = "bet",
+        uniqueConstraints = @UniqueConstraint(name = "uk_bet_member_match", columnNames = {"member_id", "match_id"}),
+        indexes = {
+                @Index(name = "idx_bet_match_id", columnList = "match_id"),
+                @Index(name = "idx_bet_member_id", columnList = "member_id")
+        })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Bet {
@@ -29,12 +37,18 @@ public class Bet {
     private Integer amount;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "bet_side", nullable = false)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @Column(name = "bet_side", nullable = false, length = 16)
     private Side betSide;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @Column(name = "status", nullable = false, length = 16)
     private BetStatus status;
+
+    //보정 스캔에서 실패한 횟수 (4회 실패 시 FAILED)
+    @Column(name = "retry_count", nullable = false)
+    private int retryCount;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
@@ -43,14 +57,13 @@ public class Bet {
     private LocalDateTime settledAt;
 
     @Builder
-    public Bet(Long matchId, Long memberId, Integer amount, Side betSide,
-               BetStatus status, LocalDateTime createdAt, LocalDateTime settledAt) {
+    public Bet(Long matchId, Long memberId, Integer amount, Side betSide, LocalDateTime createdAt) {
         this.matchId = matchId;
         this.memberId = memberId;
         this.amount = amount;
         this.betSide = betSide;
-        this.status = status;
+        this.status = BetStatus.PENDING;
+        this.retryCount = 0;
         this.createdAt = createdAt;
-        this.settledAt = settledAt;
     }
 }

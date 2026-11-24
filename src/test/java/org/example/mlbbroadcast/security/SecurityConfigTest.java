@@ -100,6 +100,14 @@ class SecurityConfigTest {
     }
 
     @Test
+    @DisplayName("베팅 API(/api/bets)는 토큰 없이 접근하면 401")
+    void betApiProtected() throws Exception {
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/bets"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.errorCode").value("AUTHENTICATION_REQUIRED"));
+    }
+
+    @Test
     @DisplayName("/api/me 외의 경로는 아직 보호하지 않는다 (정책 확정 전 전체 개방)")
     void otherPathsAreOpen() throws Exception {
         mockMvc.perform(get("/api/matches"))

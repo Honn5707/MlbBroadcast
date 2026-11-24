@@ -76,6 +76,16 @@ class MatchStatusServiceTest {
     }
 
     @Test
+    @DisplayName("CANCELED 전이 시 종료 시각을 기록한다 (베팅 보정 스캔 대상 조회 기준)")
+    void canceledSetsEndedTime() {
+        Matches match = match(MatchStatus.SCHEDULED);
+
+        new MatchStatusService(matchesRepository).changeStatus(1L, MatchStatus.CANCELED, NOW);
+
+        assertThat(match.getEndedTime()).isEqualTo(NOW);
+    }
+
+    @Test
     @DisplayName("DELAYED 재관측 시 지연 시작 시각은 처음 값을 유지한다")
     void delayedSinceKept() {
         Matches match = match(MatchStatus.SCHEDULED);

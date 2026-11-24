@@ -34,6 +34,10 @@ public interface MatchesRepository extends JpaRepository<Matches, Long> {
 
     List<Matches> findAllByGamePkIn(Collection<Integer> gamePks);
 
+    //베팅 보정 스캔: 종료(FINAL/CANCELED) 시각이 [from, to]인 경기
+    @Query("SELECT m.id FROM Matches m WHERE m.matchStatus IN :statuses AND m.endedTime >= :from AND m.endedTime <= :to")
+    List<Long> findIdsEndedBetween(@Param("statuses") Collection<MatchStatus> statuses, @Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
     //일정 조회: [start, end) 시각 범위 (UTC)
     List<Matches> findAllByScheduledStartedTimeGreaterThanEqualAndScheduledStartedTimeLessThanOrderByScheduledStartedTimeAsc(LocalDateTime start, LocalDateTime end);
 

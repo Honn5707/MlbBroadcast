@@ -44,6 +44,8 @@ public class MatchStatusService {
             match.clearDelay();
         }
         if(next == MatchStatus.DELAYED) match.markDelayed(now);
+        //취소 시각도 종료 시각으로 기록 (베팅 보정 스캔이 종료 시각 기준으로 대상 경기를 찾음)
+        if(next == MatchStatus.CANCELED && match.getEndedTime() == null) match.matchEndTimeSet(now);
 
         if(current == next) return new Transition(Outcome.UNCHANGED, match);
         match.changeStatus(next);
