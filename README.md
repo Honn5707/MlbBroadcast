@@ -4,11 +4,23 @@
 
 MLB API를 활용해 경기 진행 상황을 실시간 중계하고, 사용자는 원하는 팀에 베팅한다. 베팅한 팀이 승리하면 서비스 내 코인을 보상으로 획득한다.
 
-MVP단계에서는 모놀리식으로 개발하며 트래픽테스트 과정을 통해 멀티 아키텍쳐 시스템으로 강화할 예정. 
+MVP 단계에서는 모놀리식으로 개발하며, 트래픽 테스트를 거쳐 멀티 아키텍처 시스템으로 강화할 예정이다.
+
+## 설계 문서
+
+시스템별 상세 설계(상태 전이, 시퀀스 다이어그램, 정책, ADR)는 아래 문서에서 관리한다.
+
+| 문서 | 설명 |
+|---|---|
+| [인증/인가 (AuthSystem)](src/main/java/docs/design/AuthSystem/AuthSystem.md) | JWT 인증/인가 정책, 에러 응답, ADR, 검증 결과 |
+| [매치 시스템 (MatchSystemDesign)](src/main/java/docs/design/MatchSystem/MatchSystemDesign.md) | MLB API 동기화, 경기 상태 전이, 폴링·저장 정책, 실시간 중계 API |
+| [베팅 시스템 (BetSystemDesign)](src/main/java/docs/design/Bet/BetSystemDesign.md) | 베팅 상태, 베팅 생성·정산 시퀀스, 보정 스캔 |
+
 ## 주요 기능
 
 ### 실시간 경기 중계
-- 경기 상태(프리게임/진행중/종료), 이닝, 득점, 주요 이벤트(안타/홈런/투수교체 등) 업데이트
+- 경기 상태(예정/진행중/지연/종료/취소), 이닝, 득점, 타석·투구 이벤트 업데이트
+- WebSocket(STOMP) 기반 실시간 전송
 - 경기별 채팅 시스템
 
 ### 최애 선수 시스템
@@ -17,80 +29,76 @@ MVP단계에서는 모놀리식으로 개발하며 트래픽테스트 과정을 
 
 ### 베팅
 - 경기 단위로 "승리 팀 맞히기" 형태
-- 베팅은 경기 전, 경기 시작 후 최대 8이닝 전까지 가능. 단, 경기 시작 후 진행된 이닝에 따라 포인트 지급량 감소 (현재는 경기 시작 전에만 가능한 형태로 변경할지 고민 중)
-- 최애 선수를 지정하여 해당 선수가 POG(Player Of Game)일 경우 추가 포인트 및 해당 경기에 대한 뱃지 획득
-- POG는 경기 결과에 대한 프롬프트를 OpenAI로 분석하여 선정
+- 베팅 가능 시점: 경기 전 ~ 경기 시작 후 최대 8이닝 전. 진행된 이닝에 따라 포인트 지급량 감소 (경기 시작 전에만 가능하도록 변경할지 검토 중)
+- 최애 선수가 POG(Player Of Game)로 선정되면 추가 포인트 및 해당 경기 뱃지 획득
+- POG는 경기 결과를 OpenAI로 분석하여 선정
 
 ### 정산 및 보상 (코인)
-- 경기 종료 시점 기준으로 승/패 판정
-- 적중 시 코인 지급, 실패 시 코인 차감
+- 경기 종료(FINAL) 확정 시점 기준으로 승/패 판정
+- 적중 시 코인 지급, 실패 시 코인 차감, 경기 취소 시 환불
 
-### 코인 시스템
-- 코인으로 칭호, 프로필 아이콘, 마이페이지 내 다양한 치장 아이템 등을 구매 가능
+### 코인 사용
+- 칭호, 프로필 아이콘, 마이페이지 치장 아이템 등 구매
 
 ## ERD
 
-### Enum
-
-| Enum | 값 |
-|---|---|
-| Division | AL_EAST, AL_CENTRAL, AL_WEST, NL_EAST, NL_CENTRAL, NL_WEST |
-| PlayerPosition | PITCHER, CATCHER, FIRST_BASE, SECOND_BASE, THIRD_BASE, SHORTSTOP, LEFT_FIELD, CENTER_FIELD, RIGHT_FIELD, DESIGNATED_HITTER |
-| Provider | GOOGLE, KAKAO, NAVER |
-| MatchStatus | BEFORE, PLAYED, FINISHED |
-
-## DIAGRAM
-### ERD
 ```mermaid
 erDiagram
     TEAM_MASTER ||--o{ PLAYER_MASTER : has
-    TEAM_MASTER ||--o{ MATCHES : has
-    TEAM_RECORD }o--|| TEAM_MASTER: has
-    TEAM_RECORD }o--|| MATCHES : generates
-    PLAYER_PITCHER_RECORD }o--|| PLAYER_MASTER : has 
-    PLAYER_PITCHER_RECORD }o--|| MATCHES : generates 
-    PLAYER_HITTER_RECORD }o--|| PLAYER_MASTER : has 
-    PLAYER_HITTER_RECORD }o--|| MATCHES : generates 
-    FAVORITE_PLAYER }o--|| PLAYER_MASTER : is_favorited
-    FAVORITE_PLAYER }o--|| MEMBER : has
-    BET }o--|| MATCHES : has
-    BET }o--|| MEMBER : places
-    COIN_TRANSACTION }o--|| MEMBER : has
-    COIN_TRANSACTION }o--|| BET : settles_into
-    MATCH_PLAYLOG }o--|| PLAYER_MASTER : has
-    MATCH_PLAYLOG }o--|| MATCHES : has
+    TEAM_MASTER ||--o{ MATCHES : plays
+    TEAM_MASTER ||--o{ TEAM_RECORD : has
+    MATCHES ||--o{ TEAM_RECORD : generates
+    MATCHES ||--o{ LINE_UP : has
+    MATCHES ||--o{ MATCH_PLAY_LOG : has
+    MATCH_PLAY_LOG ||--o{ PLAY_EVENT : has
+    PLAYER_MASTER ||--o{ LINE_UP : in
+    PLAYER_MASTER ||--o{ MATCH_PLAY_LOG : "batter/pitcher"
+    PLAYER_MASTER ||--o{ PLAYER_HITTER_RECORD : has
+    PLAYER_MASTER ||--o{ PLAYER_PITCHER_RECORD : has
+    PLAYER_MASTER ||--o{ FAVORITE_PLAYER : is_favorited
+    MEMBERS ||--o{ FAVORITE_PLAYER : has
+    MEMBERS ||--o{ BET : places
+    MATCHES ||--o{ BET : has
+    MATCHES ||--o| BET_SETTLEMENT : settles
+    MEMBERS ||--o{ COIN_TRANSACTION : has
+    BET |o--o{ COIN_TRANSACTION : settles_into
 
     TEAM_MASTER {
         long id PK
-        string name
+        string full_name
+        string short_name
         enum division
-        long external_id
+        int external_id
+        boolean is_active
     }
 
     PLAYER_MASTER {
         long id PK
         long team_id FK
-        enum position
+        string position
         string name
-        long external_id
+        int jersey_number
+        int external_id
     }
 
     MATCHES {
         long id PK
         long home_team_id FK
         long visit_team_id FK
-        integer home_team_score
-        integer visit_team_score
-        enum winner
+        int home_team_score
+        int visit_team_score
+        enum win_side
         enum match_status
-        localdatetime start_time
-        localdatetime end_time
-        int season_year
-        long external_id
+        localdatetime scheduled_started_time
+        localdatetime real_started_time
+        localdatetime ended_time
+        string season_year
+        int game_pk
+        localdatetime delayed_since
+        enum polling_phase
     }
 
     TEAM_RECORD {
-        
         long id PK
         long team_id FK
         long match_id FK
@@ -102,27 +110,70 @@ erDiagram
         double team_whip
     }
 
-    PLAYER_PITCHER_RECORD {
+    LINE_UP {
         long id PK
-        long player_id FK
         long match_id FK
-        double player_ops
+        long player_id FK "nullable"
+        long team_id FK
+        int batting_order
+        int external_id
+    }
+
+    MATCH_PLAY_LOG {
+        long id PK
+        long match_id FK
+        int at_bat_index
+        long batter_id FK "nullable"
+        long pitcher_id FK "nullable"
+        int batter_external_id
+        int pitcher_external_id
+        string result_description
+        int inning
+        boolean is_top_inning
+    }
+
+    PLAY_EVENT {
+        long id PK
+        long match_play_log_id FK
+        string event
+        int pitch_index
+        string description
+        double start_speed
+        double end_speed
+        string pitch_type_description
     }
 
     PLAYER_HITTER_RECORD {
         long id PK
-        long player_id FK
-        long match_id FK
+        long player_id FK "nullable"
+        int player_external_id
+        string season_year
+        int team_external_id
         double player_avg
+        double player_obp
+        double player_slg
+        double player_ops
+        localdatetime updated_at
     }
 
-    MEMBER {
+    PLAYER_PITCHER_RECORD {
         long id PK
-        long provider_id
+        long player_id FK "nullable"
+        int player_external_id
+        string season_year
+        int team_external_id
+        double player_era
+        double player_whip
+        localdatetime updated_at
+    }
+
+    MEMBERS {
+        long id PK
+        string provider_id
         enum provider_type
         string nickname
         localdatetime created_at
-        long coin_remain
+        int coin_remain
     }
 
     FAVORITE_PLAYER {
@@ -136,243 +187,79 @@ erDiagram
         long id PK
         long match_id FK
         long member_id FK
-        integer amount
+        int amount
         enum bet_side
         enum status
+        int retry_count
         localdatetime created_at
         localdatetime settled_at
+    }
+
+    BET_SETTLEMENT {
+        long id PK
+        long match_id FK
+        enum win_side
+        decimal odds
+        long win_amount
+        long total_amount
+        localdatetime created_at
     }
 
     COIN_TRANSACTION {
         long id PK
         long member_id FK
         enum point_reason
-        integer amount
+        int amount
         localdatetime created_at
         long bet_id FK "nullable"
     }
-
-    MATCH_PLAYLOG {
-        long id PK
-        long player_id FK
-        enum record_type
-        int inning
-        enum result
-        string meta_data "JSON"
-        boolean is_highlight
-        long external_play_id
-        long match_id FK
-    }
-
-
 ```
 
+### Enum
+
+| Enum | 값 |
+|---|---|
+| Division | AL_EAST, AL_CENTRAL, AL_WEST, NL_EAST, NL_CENTRAL, NL_WEST |
+| PlayerPosition | PITCHER, CATCHER, FIRST_BASE, SECOND_BASE, THIRD_BASE, SHORTSTOP, LEFT_FIELD, CENTER_FIELD, RIGHT_FIELD, DESIGNATED_HITTER |
+| Provider | GOOGLE, KAKAO, NAVER |
+| Side | NONE, VISIT, HOME |
+| MatchStatus | SCHEDULED, LIVE, DELAYED, FINAL, CANCELED, MATCH_SUSPENDED_UNKNOWN |
+| PollingPhase | WAITING_START, STATUS, LIVE_PLAY |
+| BetStatus | PENDING, WON, LOST, CANCELED, NONE, ERROR, FAILED |
+| PointReason | SIGNUP_BONUS, CHARGE, BET_PLACED, BET_REWARD, BET_REFUND |
+
+> 경기 상태 전이는 [매치 시스템 설계 5장](src/main/java/docs/design/MatchSystem/MatchSystemDesign.md#5-경기-상태-전이), 베팅 상태는 [베팅 시스템 설계 3장](src/main/java/docs/design/Bet/BetSystemDesign.md#3-베팅-상태)을 참고.
 
 ## 디렉토리 구조
 
+도메인 단위로 패키지를 나누고, 각 도메인 하위에 entity / repository / service / dto를 둔다.
 
 ```
-src/main/java/com/mlbbroadcast
-├── MlbBroadcastApplication.java
-├── bet                 # 베팅
-│   ├── Bet.java
-│   ├── BetRepository.java
-│   └── BetStatus.java
-├── coin                # 코인 정산/지급
-│   ├── CoinTransaction.java
-│   ├── CoinTransactionRepository.java
-│   └── PointReason.java
-├── common              # 여러 도메인이 공유하는 타입 (예: 홈/원정 side)
-│   └── Side.java
-├── match                # 경기, 경기 중계 로그
-│   ├── Matches.java
-│   ├── MatchesRepository.java
-│   ├── MatchPlaylog.java
-│   ├── MatchPlaylogRepository.java
-│   ├── MatchStatus.java
-│   └── PlayResult.java
-├── member              # 회원
-│   ├── Members.java
-│   ├── MembersRepository.java
-│   └── Provider.java
-├── player              # 선수 마스터/기록/최애 선수
-│   ├── FavoritePlayer.java
-│   ├── FavoritePlayerRepository.java
-│   ├── PlayerHitterRecord.java
-│   ├── PlayerHitterRecordRepository.java
-│   ├── PlayerMaster.java
-│   ├── PlayerMasterRepository.java
-│   ├── PlayerPitcherRecord.java
-│   ├── PlayerPitcherRecordRepository.java
-│   └── PlayerPosition.java
-└── team                 # 팀 마스터/기록
-    ├── Division.java
-    ├── TeamMaster.java
-    ├── TeamMasterRepository.java
-    ├── TeamRecord.java
-    └── TeamRecordRepository.java
+src/main/java
+├── com/mlbbroadcast
+│   ├── MlbBroadcastApplication.java
+│   ├── bet              # 베팅 생성, 정산(settlement)
+│   ├── coin             # 코인 거래 내역
+│   ├── match            # 경기, 상태 전이, 폴링, 타석/투구 로그, 이벤트, 실시간 중계
+│   ├── member           # 회원, 소셜 로그인 가입
+│   ├── player           # 선수 마스터, 시즌 기록, 최애 선수
+│   ├── team             # 팀 마스터, 경기별 팀 기록
+│   ├── external         # 외부 API 클라이언트 (MLB Stats API, Google OAuth), 재시도
+│   ├── security         # JWT 필터, 인증/인가 핸들러, STOMP 인증
+│   ├── websocket        # 웹소켓 세션 관리
+│   ├── configuration    # 설정, 예외/에러 코드, Redis·WebSocket·스케줄러 설정
+│   ├── common           # 여러 도메인이 공유하는 타입 (Side, PlayerPosition)
+│   └── util             # 토큰 발급, Redis 유틸
+└── docs/design          # 시스템별 설계 문서
 ```
 
-> controller / service / dto는 아직 구현되지 않아 위 구조에서 제외했다. 추가되면 각 도메인 패키지 하위에 함께 위치시킬 예정이다.
+## ADR (전체 공통)
 
+> 시스템별 결정 사항은 각 설계 문서의 ADR/결정 사항 항목을 참고.
 
-----
-### MATCH DIAGRAM
-
-#### STATE DIAGRAM
-``` mermaid
-
-stateDiagram-v2
-    [*] --> BEFORE : 매치생성 
-    BEFORE --> PLAYED : 경기시작
-    BEFORE --> CANCELED : 경기 취소 
-    
-    PLAYED --> SUSPENDED : 경기 일지정지
-    SUSPENDED --> PLAYED : 경기 재개 
-    SUSPENDED --> CANCELED : 경기 재개 불가 
-    PLAYED --> FINISHED : 정상 종료
-    FINISHED --> [*] 
-    CANCELED --> [*]
-
-
-
-
-```
-#### SequenceDiagram
-``` mermaid
-sequenceDiagram
-
-    loop (매 00시 schedulerList호출 )
-    MatchScheduler ->>  MatchService : getSchedule()
-    MatchService ->> APISTATUS: ScheduleRequest()
-    APISTATUS ->> MatchService : ScheduleResponse()
-    MatchService ->> MatchRepository: saveMatchSchedule(SchedulerFuture)
-    end
-
-
-    loop (경기가 시작될떄까지 )
-    MatchScheduler ->> MatchService :  checkMatchStart(matchData)
-    alt status = FINISHED
-
-        MatchService ->> EventPublisher : Event(FinishGame)
-        EventPublisher ->> EventListener : MatchServiceEvent
-        MatchService ->> MatchRepository : save()
-    
-    else status = SUSPENDED
-        MatchService ->> MatchRepository : save()
-
-     else status = CANCELED
-        MatchService ->> EventPublisher : Event(CanceledGame)
-        EventPublisher ->> EventListener : MatchServiceEvent
-        MatchService ->> MatchRepository : save()
-    else status = PLAYED
-        MatchService ->> Redis : getExistingAtBatIndex()
-        Redis -->> MatchService : existingAtBatStateIndex
-        MatchService ->> Redis : setCurrentAtBatState(balls, strikes, outs)
-        opt CurrentAtBatStateIndex > existingAtBatStateIndex
-        MatchService ->> MatchRecordService : endedAtBat()
-        MatchRecordService ->> MatchRecordRepository : record()
-    end
-
-    opt scoreChange
-        MatchService ->> MatchRepository : updateMatch()
-    end
-    end
-    
-        MatchService ->> WebSocket: signalByClient
-
-    end 
-    
-    
-
-    
-```
-
-
-----
-### BETTING DIAGRAM
-
-
-#### STATE DIAGRAM
-
-```mermaid
-stateDiagram-v2
-    [*] --> PENDING: 베팅 생성(코인 차감)
-    PENDING --> WON : 승리
-    PENDING --> LOST : 패배
-    PENDING --> CANCELED : 취소(우천 등)
-    WON --> [*] : 코인 증가(CoinTransaction)
-    LOST --> [*]:(추가 코인 변동 없음)
-    CANCELED --> [*] : 차감된 코인 환수
-
-```
-
-
-
-#### BetCreate
-``` mermaid
-sequenceDiagram
-    
-
-    BetService ->> MatchService : is Match Before?
-    MatchService -->> BetService : response
-    alt MathStatus = BEFORE
-    BetService ->> BetRepository : isParticePainted(memberId, MatchId)
-    BetRepository -->> BetService : response
-    alt isBetted <- false
-    BetService ->> MemberService : check_coinRemain
-    MemberService --> BetService : response
-    alt coinRemain >= betAmount
-    
-    BetService ->> CoinTransactionService : spend Coin (Betting)
-    CoinTransactionService ->> MemberRepository: coin.spend()
-    BetService ->> BetRepository : Create Bet Entity
-    else coinRemain< betAmount
-    Note over BetService: LackCoinException
-    end
-    else isBetted <- true
-    Note over BetService: MatchAlreadyParticePaintedException
-    end
-    else MathStatus != BEFORE
-    Note over BetService: MatchAlreadyStartedException
-    end
-    
-    
-    
-```
-
-#### BetTransaction
-
-#### SEQUENCE DIAGRAM
-```mermaid
-sequenceDiagram
-    MatchScheduler->> MatchService : matchClose
-    MatchService ->> EventPublisher :  publish(BetSettleEvent)
-    EventPublisher -->> BetSettleEventListener : MatchCloseevent
-    BetSettleEventListener ->> BetService : settle(matchId)
-    loop 각 베팅 엔티티마다 루프
-    alt 적중 (WON)
-        BetService->>BetRepository: wonBet
-        BetService->>CoinTransactionService: wonBetEvent
-        CoinTransactionService -> MemberService : addCoinEvent
-        MemberService ->> MEMBER : addCoin
-    else 실패 (LOST)
-        BetService->>BetRepository: lostBet
-    else 경기 취소 (CANCELED)
-        BetService->>BetRepository: cancel
-        BetService->>CoinTransactionService: cancelBetEvent
-        CoinTransactionService -> MemberService : addCoinEvent
-        MemberService ->> MEMBER : addCoin
-    end
-    end
-```
-
-
-
-## ADR
-- API호출은 폴링 형식으로 저장하며, 외부 API에서 접근하는 INDEX에 맞춰 필요한 내용만 저장.
-- 실시간성 데이터(현재 타석)은 Redis 메모리를통해 캐시화 한 뒤, 타석이 끝난뒤 db 폴링
-- `player_hitter_record`, `player_pitcher_record`, `team_record` 에는 공통으로 sanson_year 칼럼을 통한 의도적 비 정규화.  → 정규화 시, 빈도가 잦은 쿼리에서 조인이 비효율적으로 자주 발생.  세 엔티티는  matches의 season_year이 파생되어 정합성 유지.
-- 디렉토리 설계는 도메인 위주로 설계하여 유연한 확장이 가능하게 설계
-- MatchService -> BetService 는 이벤트 리스너를 이용하여 추후 확장 설계를 대비. coinTransaction->memberService는 같은 트랜잭션 안에 일관되고 빠르게 처리되어야 하기 때문에 직접 호출  
-  (09.15) 경기 데이터 저장 형식을 MatchPlayLog엔티티에서 PitchLog엔티티를 추가하여 
+- 외부 API는 폴링 방식으로 호출하며, 외부 API의 index(atBatIndex 등)에 맞춰 필요한 내용만 저장한다.
+- 실시간성 데이터(현재 타석)는 캐시에 두고, 타석이 끝난 뒤 DB에 저장한다.
+- `player_hitter_record`, `player_pitcher_record`에는 `season_year` 컬럼을 두는 의도적 비정규화를 적용한다. 정규화하면 빈도가 잦은 조회 쿼리에서 조인이 자주 발생해 비효율적이다.
+- 디렉토리는 도메인 중심으로 설계하여 유연하게 확장할 수 있도록 한다.
+- MatchService → BetService는 스프링 이벤트 리스너로 연결하여 추후 확장에 대비한다. 반면 CoinTransaction → MemberService는 같은 트랜잭션 안에서 일관되고 빠르게 처리되어야 하므로 직접 호출한다.
+- 경기 데이터는 타석 단위(`MatchPlayLog`)에 더해 투구 단위(`PlayEvent`) 엔티티로 나누어 저장한다.
